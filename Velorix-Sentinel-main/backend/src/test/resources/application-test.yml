@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:sentinel;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+velorix:
+  storage:
+    location: ${java.io.tmpdir}/velorix-sentinel-test-captures
+  app:
+    frontend-base-url: http://localhost:5173
+  security:
+    jwt:
+      # Test-only signing material; production reads JWT_SECRET from the environment.
+      secret: dGVzdC1zZWNyZXQtZm9yLXZlbG9yaXgtc2VudGluZWwtaW50ZWdyYXRpb24tdGVzdHMtb25seS1uZXZlci11c2VkLWluLXByb2R1Y3Rpb24tMDEyMzQ1Njc4OQ==
+      access-token-expiration: PT15M
+      refresh-token-expiration: P7D
+
+logging:
+  level:
+    com.velorix.sentinel: INFO

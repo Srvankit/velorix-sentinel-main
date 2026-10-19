@@ -1,0 +1,253 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * SentinelAI Design System
+ * -----------------------------------------------------------------------------
+ * Dark-first enterprise security console. Blue primary accent, purple secondary
+ * accent, deep slate surfaces, glassmorphism panels.
+ *
+ * Rules:
+ * - All colors are oklch semantic tokens. Never hardcode colors in components.
+ * - Register new tokens in :root (and .dark override if it differs) and map them
+ *   in @theme inline as --color-<name>.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-elevated: var(--elevated);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-bright: var(--primary-bright);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-critical: var(--critical);
+  --color-critical-foreground: var(--critical-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* Core surfaces — near-black cyber console */
+  --background: oklch(0.155 0.018 264);
+  --foreground: oklch(0.984 0.003 247);
+  --surface: oklch(0.205 0.019 264);
+  --surface-foreground: oklch(0.984 0.003 247);
+  --elevated: oklch(0.245 0.021 264);
+  --card: oklch(0.205 0.019 264);
+  --card-foreground: oklch(0.984 0.003 247);
+  --popover: oklch(0.215 0.02 264);
+  --popover-foreground: oklch(0.984 0.003 247);
+
+  /* Accents — crimson / scarlet */
+  --primary: oklch(0.577 0.245 27.3);
+  --primary-foreground: oklch(0.99 0.003 265);
+  /* Accessible crimson for small text on dark surfaces (WCAG AA on --surface). */
+  --primary-bright: oklch(0.74 0.175 25);
+  --secondary: oklch(0.637 0.237 25.3);
+
+  --secondary-foreground: oklch(0.99 0.003 265);
+  --accent: oklch(0.3 0.024 262);
+  --accent-foreground: oklch(0.984 0.003 247);
+  --muted: oklch(0.26 0.02 264);
+  --muted-foreground: oklch(0.71 0.035 256);
+
+  /* Status */
+  --destructive: oklch(0.637 0.237 25.3);
+  --destructive-foreground: oklch(0.99 0.003 265);
+  --critical: oklch(0.52 0.24 26);
+  --critical-foreground: oklch(0.99 0.003 265);
+  --warning: oklch(0.769 0.166 70);
+  --warning-foreground: oklch(0.18 0.02 265);
+  --success: oklch(0.723 0.19 150);
+  --success-foreground: oklch(0.16 0.02 265);
+  --info: oklch(0.7 0.12 220);
+  --info-foreground: oklch(0.16 0.02 265);
+
+  /* Lines & controls */
+  --border: oklch(0.3 0.024 262);
+  --input: oklch(0.34 0.026 262);
+  --ring: oklch(0.577 0.245 27.3);
+
+  /* Data visualisation */
+  --chart-1: oklch(0.577 0.245 27.3);
+  --chart-2: oklch(0.637 0.237 25.3);
+  --chart-3: oklch(0.769 0.166 70);
+  --chart-4: oklch(0.723 0.19 150);
+  --chart-5: oklch(0.71 0.035 256);
+
+  /* Sidebar */
+  --sidebar: oklch(0.18 0.018 264);
+  --sidebar-foreground: oklch(0.93 0.008 265);
+  --sidebar-primary: oklch(0.577 0.245 27.3);
+  --sidebar-primary-foreground: oklch(0.99 0.003 265);
+  --sidebar-accent: oklch(0.245 0.021 264);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247);
+  --sidebar-border: oklch(0.3 0.024 262);
+  --sidebar-ring: oklch(0.577 0.245 27.3);
+
+  /* Composite design tokens */
+  --gradient-brand: linear-gradient(
+    135deg,
+    oklch(0.577 0.245 27.3) 0%,
+    oklch(0.637 0.237 25.3) 100%
+  );
+  --gradient-surface: linear-gradient(
+    160deg,
+    oklch(0.99 0 0 / 7%) 0%,
+    oklch(0.99 0 0 / 2%) 100%
+  );
+  --glow-primary: 0 0 0 1px oklch(0.577 0.245 27.3 / 30%), 0 18px 50px -18px oklch(0.637 0.237 25.3 / 55%);
+  --shadow-panel: 0 1px 0 0 oklch(0.99 0 0 / 6%) inset, 0 24px 60px -30px oklch(0 0 0 / 80%);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Single-theme product: the dark palette is the only palette. */
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: oklch(0.577 0.245 27.3 / 35%);
+  }
+}
+
+/* Frosted panel used across dashboards, modals and auth cards. */
+@utility glass-panel {
+  background-image: var(--gradient-surface);
+  background-color: oklch(0.205 0.019 264 / 72%);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Brand gradient text for headlines and logotypes. */
+@utility text-gradient-brand {
+  background-image: var(--gradient-brand);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+
+/* Ambient radial glow used behind hero/auth content. */
+@utility ambient-grid {
+  background-image:
+    radial-gradient(circle at 15% 0%, oklch(0.577 0.245 27.3 / 16%), transparent 45%),
+    radial-gradient(circle at 85% 10%, oklch(0.637 0.237 25.3 / 12%), transparent 45%),
+    linear-gradient(oklch(0.99 0 0 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.99 0 0 / 3%) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 56px 56px, 56px 56px;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Soft red glow used on premium interactive surfaces. */
+@utility glow-ring {
+  box-shadow: var(--glow-primary);
+}
+
+@utility hover-glow {
+  transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+  &:hover {
+    box-shadow: var(--glow-primary);
+    border-color: oklch(0.577 0.245 27.3 / 45%);
+    transform: translateY(-3px);
+  }
+}
+
+/* Respect the OS "reduce motion" setting across every animated surface. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

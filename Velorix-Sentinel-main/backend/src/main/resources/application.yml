@@ -1,0 +1,137 @@
+spring:
+  application:
+    name: velorix-sentinel-backend
+
+  datasource:
+    # Supabase is standard PostgreSQL. Prefer SUPABASE_* in hosted deployments;
+    # DB_* remains supported for local development and other PostgreSQL hosts.
+    url: ${SUPABASE_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/velorix_sentinel}}
+    username: ${SUPABASE_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${SUPABASE_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: velorix-pool
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:10000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      initialization-fail-timeout: ${DB_INITIALIZATION_FAIL_TIMEOUT:10000}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Migration friendly: schema is owned by migrations, never by Hibernate.
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: ${JPA_SQL_COMMENTS:false}
+        jdbc:
+          time_zone: UTC
+    show-sql: ${JPA_SHOW_SQL:false}
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    # A broken database configuration should fail quickly and visibly.
+    connect-retries: ${FLYWAY_CONNECT_RETRIES:1}
+    connect-retries-interval: ${FLYWAY_CONNECT_RETRIES_INTERVAL:1}
+    validate-on-migrate: true
+    clean-disabled: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_UPLOAD_FILE_SIZE:100MB}
+      max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:105MB}
+      file-size-threshold: 1MB
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  # Render injects PORT when available; Docker defaults to the exposed web port.
+  # Local development remains on 8081 unless PORT or SERVER_PORT is overridden.
+  port: ${PORT:${SERVER_PORT:8081}}
+  error:
+    include-message: never
+    include-stacktrace: never
+  servlet:
+    context-path: /
+
+velorix:
+  app:
+    # Public URL of the Velorix Sentinel web console; used to build email links.
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:8080}
+    email-verification-expiration: ${EMAIL_VERIFICATION_EXPIRATION:PT24H}
+    password-reset-expiration: ${PASSWORD_RESET_EXPIRATION:PT30M}
+    # Refresh token lifetime when the user did not tick "keep me signed in".
+    short-lived-refresh-expiration: ${SHORT_LIVED_REFRESH_EXPIRATION:PT12H}
+  storage:
+    # Root directory of the capture store. Swap the FileStorageService bean for S3/Azure later.
+    location: ${CAPTURE_STORAGE_LOCATION:./data/captures}
+    max-file-size: ${CAPTURE_MAX_FILE_SIZE:100MB}
+    allowed-extensions: pcap,pcapng
+  detection:
+    # Stamped onto every finding so results stay traceable to the logic that produced them.
+    engine-version: ${DETECTION_ENGINE_VERSION:detect-1.0.0}
+    batch-size: ${DETECTION_BATCH_SIZE:500}
+    stream-chunk-size: ${DETECTION_STREAM_CHUNK_SIZE:10000}
+    # Safety valves: attacker supplied captures must never exhaust a worker.
+    max-findings-per-rule: ${DETECTION_MAX_FINDINGS_PER_RULE:200}
+    max-sample-frames: ${DETECTION_MAX_SAMPLE_FRAMES:20}
+    max-tracked-keys: ${DETECTION_MAX_TRACKED_KEYS:200000}
+    # Comma separated rule ids to silence without a redeploy, e.g. unknown-protocol.
+    disabled-rules: ${DETECTION_DISABLED_RULES:}
+  security:
+    jwt:
+      # Base64 encoded HMAC-SHA secret. MUST be provided via environment in every real environment.
+      secret: ${JWT_SECRET:}
+      issuer: ${JWT_ISSUER:velorix-sentinel}
+      access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:PT15M}
+      refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:P7D}
+      token-prefix: "Bearer "
+      header-name: Authorization
+  # Configure OAuth clients through SPRING_SECURITY_OAUTH2_CLIENT_* environment variables.
+  # Redirect URI for both providers: https://velorix-sentinel-backend.onrender.com/login/oauth2/code/{registrationId}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:5173,http://localhost:3000,https://velorixsentinel.netlify.app,https://*.netlify.app,https://*.lovable.app,https://*.lovableproject.com}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    exposed-headers: Authorization
+    allow-credentials: true
+    max-age: 3600
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    # Render's liveness probe must only verify that the web process is alive.
+    # Database readiness is exercised by the authenticated application paths
+    # and must not prevent the container from opening its port.
+    db:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.velorix.sentinel: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.security: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:INFO}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_HIBERNATE_BIND:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
