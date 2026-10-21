@@ -38,6 +38,10 @@ public class User extends BaseEntity {
     @Column(name = "last_name", nullable = false, length = 80)
     private String lastName;
 
+    /**
+     * Unique email address. Database-level case-insensitive uniqueness is enforced
+     * via the functional index uk_users_lower_email ON users (LOWER(email)).
+     */
     @Column(name = "email", nullable = false, unique = true, length = 254)
     private String email;
 
