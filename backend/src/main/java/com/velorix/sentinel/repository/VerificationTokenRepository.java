@@ -3,6 +3,7 @@ package com.velorix.sentinel.repository;
 import com.velorix.sentinel.entity.VerificationToken;
 import com.velorix.sentinel.entity.enums.TokenPurpose;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,4 +28,11 @@ public interface VerificationTokenRepository extends JpaRepository<VerificationT
     @Modifying
     @Query("delete from VerificationToken vt where vt.expiresAt < :cutoff")
     int deleteAllExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    @Query("select vt.id from VerificationToken vt where vt.expiresAt < :cutoff")
+    List<UUID> findExpiredIdsBefore(@Param("cutoff") Instant cutoff, org.springframework.data.domain.Pageable pageable);
+
+    @Modifying
+    @Query("delete from VerificationToken vt where vt.id in :ids")
+    int deleteByIdsIn(@Param("ids") List<UUID> ids);
 }

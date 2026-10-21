@@ -26,4 +26,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Modifying
     @Query("delete from RefreshToken rt where rt.expiresAt < :cutoff")
     int deleteAllExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    @Query("select rt.id from RefreshToken rt where rt.expiresAt < :cutoff")
+    List<UUID> findExpiredIdsBefore(@Param("cutoff") Instant cutoff, org.springframework.data.domain.Pageable pageable);
+
+    @Modifying
+    @Query("delete from RefreshToken rt where rt.id in :ids")
+    int deleteByIdsIn(@Param("ids") List<UUID> ids);
 }

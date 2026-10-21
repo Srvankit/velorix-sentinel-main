@@ -102,6 +102,15 @@ velorix:
     exposed-headers: Authorization
     allow-credentials: true
     max-age: 3600
+  retention:
+    enabled: ${RETENTION_ENABLED:true}
+    cron: ${RETENTION_CRON:0 0 3 * * *}
+    zone: ${RETENTION_ZONE:UTC}
+    batch-size: ${RETENTION_BATCH_SIZE:1000}
+    refresh-token-retention: ${RETENTION_REFRESH_TOKENS:P30D}
+    verification-token-retention: ${RETENTION_VERIFICATION_TOKENS:P7D}
+    activity-log-retention: ${RETENTION_ACTIVITY_LOGS:P90D}
+    soft-deleted-file-retention: ${RETENTION_SOFT_DELETED_FILES:P30D}
 
 springdoc:
   api-docs:

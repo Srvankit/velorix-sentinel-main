@@ -37,5 +37,14 @@ public interface UploadedFileRepository
     default long countForOwner(UUID userId) {
         return count(UploadedFileSpecifications.visible(userId, null, null));
     }
+
+    @org.springframework.data.jpa.repository.Query("""
+            select uf.id from UploadedFile uf
+            where uf.uploadStatus = com.velorix.sentinel.entity.enums.UploadStatus.DELETED
+              and uf.updatedAt < :cutoff
+            """)
+    java.util.List<UUID> findSoftDeletedIdsBefore(
+            @org.springframework.data.repository.query.Param("cutoff") java.time.Instant cutoff,
+            Pageable pageable);
 }
 

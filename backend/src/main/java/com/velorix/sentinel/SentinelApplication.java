@@ -5,6 +5,7 @@ import com.velorix.sentinel.config.properties.CorsProperties;
 import com.velorix.sentinel.config.properties.DetectionProperties;
 import com.velorix.sentinel.config.properties.InspectionProperties;
 import com.velorix.sentinel.config.properties.JwtProperties;
+import com.velorix.sentinel.config.properties.RetentionProperties;
 import com.velorix.sentinel.config.properties.StorageProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -20,7 +21,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         AppProperties.class,
         StorageProperties.class,
         InspectionProperties.class,
-        DetectionProperties.class})
+        DetectionProperties.class,
+        RetentionProperties.class})
 public class SentinelApplication {
 
     public static void main(String[] args) {
