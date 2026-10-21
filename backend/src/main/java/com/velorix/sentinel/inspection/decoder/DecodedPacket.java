@@ -32,6 +32,8 @@ import java.time.Instant;
  * @param checksum        checksum of the highest decoded header, unsigned
  * @param info            short human readable description of the frame
  * @param malformed       true when the frame could not be fully decoded
+ * @param suspicious      true when flagged by threat detection
+ * @param vlanId          802.1Q VLAN identifier if tagged, null otherwise
  */
 public record DecodedPacket(
         long number,
@@ -54,5 +56,66 @@ public record DecodedPacket(
         Integer windowSize,
         Integer checksum,
         String info,
-        boolean malformed) {
+        boolean malformed,
+        boolean suspicious,
+        Integer vlanId) {
+
+    public DecodedPacket(
+            long number,
+            Instant timestamp,
+            String sourceMac,
+            String destinationMac,
+            NetworkProtocol networkProtocol,
+            String sourceIp,
+            String destinationIp,
+            Protocol protocol,
+            Integer sourcePort,
+            Integer destinationPort,
+            int packetLength,
+            int capturedLength,
+            int payloadSize,
+            Integer ttl,
+            String tcpFlags,
+            Long sequenceNumber,
+            Long acknowledgementNumber,
+            Integer windowSize,
+            Integer checksum,
+            String info,
+            boolean malformed) {
+        this(number, timestamp, sourceMac, destinationMac, networkProtocol,
+                sourceIp, destinationIp, protocol, sourcePort, destinationPort,
+                packetLength, capturedLength, payloadSize, ttl, tcpFlags,
+                sequenceNumber, acknowledgementNumber, windowSize, checksum,
+                info, malformed, false, null);
+    }
+
+    public DecodedPacket(
+            long number,
+            Instant timestamp,
+            String sourceMac,
+            String destinationMac,
+            NetworkProtocol networkProtocol,
+            String sourceIp,
+            String destinationIp,
+            Protocol protocol,
+            Integer sourcePort,
+            Integer destinationPort,
+            int packetLength,
+            int capturedLength,
+            int payloadSize,
+            Integer ttl,
+            String tcpFlags,
+            Long sequenceNumber,
+            Long acknowledgementNumber,
+            Integer windowSize,
+            Integer checksum,
+            String info,
+            boolean malformed,
+            boolean suspicious) {
+        this(number, timestamp, sourceMac, destinationMac, networkProtocol,
+                sourceIp, destinationIp, protocol, sourcePort, destinationPort,
+                packetLength, capturedLength, payloadSize, ttl, tcpFlags,
+                sequenceNumber, acknowledgementNumber, windowSize, checksum,
+                info, malformed, suspicious, null);
+    }
 }

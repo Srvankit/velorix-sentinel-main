@@ -37,8 +37,8 @@ const columns: Array<DataTableColumn<RecentAnalysis>> = [
     header: "Risk",
     align: "right",
     sortable: true,
-    sortValue: (row) => row.riskScore,
-    cell: (row) => <RiskBadge score={row.riskScore} showLabel={false} />,
+    sortValue: (row) => (row.status === "COMPLETED" ? row.riskScore : -1),
+    cell: (row) => <RiskBadge score={row.riskScore} status={row.status} showLabel={false} />,
   },
   {
     key: "created",

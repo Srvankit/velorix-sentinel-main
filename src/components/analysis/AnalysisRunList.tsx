@@ -62,7 +62,7 @@ export function AnalysisRunList({ runs, selectedId, onSelect, isLoading }: Analy
               </div>
             ) : (
               <div className="mt-3">
-                <RiskBadge score={run.riskScore} />
+                <RiskBadge score={run.riskScore} status={run.status} />
               </div>
             )}
           </button>

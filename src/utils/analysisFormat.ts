@@ -23,3 +23,14 @@ export function formatBitrate(bitsPerSecond: number): string {
 export function formatEndpoint(ip: string, port: number | null | undefined): string {
   return port === null || port === undefined ? ip : `${ip}:${port}`;
 }
+
+/**
+ * Determines whether a capture was completed with recoverable tail truncation
+ * and should display the truncation warning banner.
+ */
+export function isTruncatedCaptureWarningVisible(
+  status: string | undefined,
+  truncated: boolean | undefined
+): boolean {
+  return status === "COMPLETED" && Boolean(truncated);
+}

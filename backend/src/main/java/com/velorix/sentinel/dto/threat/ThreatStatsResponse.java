@@ -15,7 +15,9 @@ import java.util.Map;
 @Schema(name = "ThreatStatsResponse", description = "Aggregated threat statistics")
 public record ThreatStatsResponse(
         long totalThreats,
-        int riskScore,
+        @Schema(description = "Risk score (0-100), null while detection has not executed")
+        Integer riskScore,
+        @Schema(description = "Overall status classification, null while detection has not executed")
         OverallStatus overallStatus,
         Map<ThreatSeverity, Long> severityCounts,
         Map<ThreatType, Long> categoryCounts,

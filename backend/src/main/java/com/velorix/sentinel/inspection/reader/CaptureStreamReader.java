@@ -21,8 +21,8 @@ public interface CaptureStreamReader {
      *
      * @param input  positioned at the very start of the capture; the caller owns closing it
      * @param handler invoked once per frame; returning {@code false} stops the stream
-     * @return the number of frames handed to the handler
+     * @return the result containing number of frames read and whether tail truncation was encountered
      * @throws IOException on an unrecoverable read failure
      */
-    long stream(InputStream input, CaptureFrameHandler handler) throws IOException;
+    CaptureReadResult stream(InputStream input, CaptureFrameHandler handler) throws IOException;
 }

@@ -1,9 +1,9 @@
-import { Activity, Gauge, Globe, Layers, ShieldAlert, Timer } from "lucide-react";
+import { Activity, AlertTriangle, Gauge, Globe, Layers, ShieldAlert, Timer } from "lucide-react";
 
 import { StatTile } from "./StatTile";
 import { ErrorState, SkeletonStat } from "@/components/common";
 import type { Analysis, AnalysisThreatSummary } from "@/types/analysis";
-import { formatDuration } from "@/utils/analysisFormat";
+import { formatDuration, isTruncatedCaptureWarningVisible } from "@/utils/analysisFormat";
 import { formatBytes, formatDateTime, formatNumber } from "@/utils/format";
 
 interface AnalysisOverviewPanelProps {
@@ -39,8 +39,54 @@ export function AnalysisOverviewPanel({
     );
   }
 
+  const isDetectionComplete = analysis.status === "COMPLETED" && Boolean(summary);
+
+  const maliciousValue = isDetectionComplete
+    ? formatNumber(analysis.maliciousPackets)
+    : "—";
+
+  const maliciousHint = isDetectionComplete
+    ? `${formatNumber(analysis.safePackets)} clean frames`
+    : analysis.status === "FAILED"
+      ? "Inspection failed"
+      : "Awaiting scan";
+
+  const riskValue = isDetectionComplete
+    ? `${summary!.riskScore}/100`
+    : "—";
+
+  const riskHint = isDetectionComplete
+    ? summary!.overallStatus.toLowerCase().replace(/_/g, " ")
+    : analysis.status === "FAILED"
+      ? "Inspection failed"
+      : analysis.status === "PROCESSING"
+        ? "Scanning in progress…"
+        : "Awaiting scan";
+
+  const threatsValue = isDetectionComplete
+    ? formatNumber(summary!.totalThreats)
+    : "—";
+
+  const threatsHint = isDetectionComplete
+    ? `${formatNumber(summary!.criticalThreats)} critical · ${formatNumber(summary!.highThreats)} high`
+    : analysis.status === "FAILED"
+      ? "Inspection failed"
+      : "Verdict available once scan completes";
+
   return (
     <div className="space-y-6">
+      {isTruncatedCaptureWarningVisible(analysis.status, analysis.truncated) && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="truncated-capture-warning"
+          className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200"
+        >
+          <AlertTriangle className="size-5 shrink-0 text-amber-400" aria-hidden="true" />
+          <span>Capture truncated: analysis used all valid frames available before the file ended.</span>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Total packets"
@@ -78,24 +124,20 @@ export function AnalysisOverviewPanel({
         />
         <StatTile
           label="Malicious frames"
-          value={formatNumber(analysis.maliciousPackets)}
-          hint={`${formatNumber(analysis.safePackets)} clean frames`}
+          value={maliciousValue}
+          hint={maliciousHint}
           icon={ShieldAlert}
         />
         <StatTile
           label="Risk score"
-          value={`${summary?.riskScore ?? analysis.riskScore}/100`}
-          hint={summary?.overallStatus ? summary.overallStatus.toLowerCase() : "Awaiting verdict"}
+          value={riskValue}
+          hint={riskHint}
           icon={Gauge}
         />
         <StatTile
           label="Threats detected"
-          value={formatNumber(summary?.totalThreats ?? 0)}
-          hint={
-            summary
-              ? `${formatNumber(summary.criticalThreats)} critical · ${formatNumber(summary.highThreats)} high`
-              : "Verdict available once the run completes"
-          }
+          value={threatsValue}
+          hint={threatsHint}
           icon={ShieldAlert}
         />
       </div>

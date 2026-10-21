@@ -1,12 +1,15 @@
 package com.velorix.sentinel.service.impl;
 
+import com.velorix.sentinel.detection.DetectionOutcome;
 import com.velorix.sentinel.entity.Analysis;
+import com.velorix.sentinel.entity.AnalysisSummary;
 import com.velorix.sentinel.entity.enums.ActivityType;
 import com.velorix.sentinel.entity.enums.AnalysisStage;
 import com.velorix.sentinel.entity.enums.AnalysisStatus;
 import com.velorix.sentinel.exception.ResourceNotFoundException;
 import com.velorix.sentinel.inspection.InspectionProgress;
 import com.velorix.sentinel.repository.AnalysisRepository;
+import com.velorix.sentinel.repository.AnalysisSummaryRepository;
 import com.velorix.sentinel.repository.PacketRepository;
 import com.velorix.sentinel.service.ActivityLogService;
 import java.time.Duration;
@@ -34,14 +37,17 @@ public class AnalysisRunStateService {
     private static final int MAX_FAILURE_REASON_LENGTH = 512;
 
     private final AnalysisRepository analysisRepository;
+    private final AnalysisSummaryRepository analysisSummaryRepository;
     private final PacketRepository packetRepository;
     private final ActivityLogService activityLogService;
 
     public AnalysisRunStateService(
             AnalysisRepository analysisRepository,
+            AnalysisSummaryRepository analysisSummaryRepository,
             PacketRepository packetRepository,
             ActivityLogService activityLogService) {
         this.analysisRepository = analysisRepository;
+        this.analysisSummaryRepository = analysisSummaryRepository;
         this.packetRepository = packetRepository;
         this.activityLogService = activityLogService;
     }
@@ -77,17 +83,14 @@ public class AnalysisRunStateService {
         });
     }
 
-    /** Finalises a successful run and computes the aggregates that are costly to derive. */
+    /**
+     * Persists the packet inspection metrics and aggregates while keeping the analysis
+     * in {@code PROCESSING} so detection can follow before completion.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void complete(UUID analysisId, InspectionProgress progress, Instant startedAt) {
+    public void saveInspectionResults(UUID analysisId, InspectionProgress progress) {
         Analysis analysis = require(analysisId);
-        Instant completedAt = Instant.now();
-
-        analysis.setStatus(AnalysisStatus.COMPLETED);
-        analysis.setStage(AnalysisStage.COMPLETED);
-        analysis.setCompletedAt(completedAt);
-        analysis.setDuration(Duration.between(startedAt, completedAt).toMillis());
-        analysis.setProgressPercent(100);
+        analysis.setStage(AnalysisStage.SAVING);
         analysis.setTotalPackets(progress.processedPackets());
         analysis.setProcessedPackets(progress.processedPackets());
         analysis.setMalformedPackets(progress.malformedPackets());
@@ -96,16 +99,59 @@ public class AnalysisRunStateService {
         analysis.setCaptureStartedAt(progress.firstFrameAt());
         analysis.setCaptureEndedAt(progress.lastFrameAt());
         analysis.setCaptureDuration(progress.captureDurationMillis());
-
-        // Distinct cardinality is expensive, so it is computed exactly once - here - and
-        // read back from the row by every subsequent summary request.
         analysis.setUniqueSourceIps(packetRepository.countDistinctSourceIps(analysisId));
         analysis.setUniqueDestinationIps(packetRepository.countDistinctDestinationIps(analysisId));
+        analysisRepository.save(analysis);
+    }
+
+    /**
+     * Persists threat detection findings summary and risk score in its own transaction.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveDetectionOutcome(UUID analysisId, DetectionOutcome outcome) {
+        Analysis analysis = require(analysisId);
+        AnalysisSummary summary = analysisSummaryRepository.findByAnalysisId(analysisId)
+                .orElseGet(() -> AnalysisSummary.builder().analysis(analysis).build());
+        summary.setAnalysis(analysis);
+        summary.setTotalThreats(outcome.totalThreats());
+        summary.setCriticalThreats(outcome.criticalThreats());
+        summary.setHighThreats(outcome.highThreats());
+        summary.setMediumThreats(outcome.mediumThreats());
+        summary.setLowThreats(outcome.lowThreats());
+        summary.setRiskScore(outcome.riskScore());
+        summary.setOverallStatus(outcome.overallStatus());
+        analysisSummaryRepository.save(summary);
+
+        analysis.setRiskScore(outcome.riskScore());
+        analysis.setMaliciousPackets(outcome.maliciousPackets());
+        analysis.setSafePackets(outcome.safePackets());
+        analysisRepository.save(analysis);
+    }
+
+    /** Finalises a successful run after both inspection and detection have finished. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void complete(UUID analysisId, Instant startedAt) {
+        Analysis analysis = require(analysisId);
+        Instant completedAt = Instant.now();
+
+        analysis.setStatus(AnalysisStatus.COMPLETED);
+        analysis.setStage(AnalysisStage.COMPLETED);
+        analysis.setCompletedAt(completedAt);
+        analysis.setDuration(Duration.between(startedAt, completedAt).toMillis());
+        analysis.setProgressPercent(100);
+        analysisRepository.save(analysis);
 
         activityLogService.success(
                 analysis.getUploadedFile().getUser(),
                 ActivityType.ANALYSIS_COMPLETED,
-                "Inspection completed with %d packets".formatted(progress.processedPackets()));
+                "Inspection and detection completed with %d packets".formatted(analysis.getTotalPackets()));
+    }
+
+    /** Backward-compatible helper that records inspection results and finalises immediately. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void complete(UUID analysisId, InspectionProgress progress, Instant startedAt) {
+        saveInspectionResults(analysisId, progress);
+        complete(analysisId, startedAt);
     }
 
     /**

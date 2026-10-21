@@ -93,8 +93,8 @@ export function PacketDetailSheet({ analysisId, packet, onOpenChange }: PacketDe
             <div className="flex flex-wrap gap-2">
               <StatusBadge status={packet.protocol} tone="info" />
               <StatusBadge
-                status={packet.suspicious ? "SUSPICIOUS" : "CLEAN"}
-                tone={packet.suspicious ? "danger" : "success"}
+                status={packet.suspicious ? "SUSPICIOUS" : "UNFLAGGED"}
+                tone={packet.suspicious ? "danger" : "neutral"}
               />
               {packet.malformed && <StatusBadge status="MALFORMED" tone="warning" />}
             </div>

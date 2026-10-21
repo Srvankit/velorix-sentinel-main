@@ -33,16 +33,19 @@ public class ThreatDetectionEngine {
     private final DetectionRuleRegistry registry;
     private final PacketStreamReader packetStreamReader;
     private final ThreatBatchWriter threatBatchWriter;
+    private final PacketThreatClassifier packetThreatClassifier;
     private final DetectionProperties properties;
 
     public ThreatDetectionEngine(
             DetectionRuleRegistry registry,
             PacketStreamReader packetStreamReader,
             ThreatBatchWriter threatBatchWriter,
+            PacketThreatClassifier packetThreatClassifier,
             DetectionProperties properties) {
         this.registry = registry;
         this.packetStreamReader = packetStreamReader;
         this.threatBatchWriter = threatBatchWriter;
+        this.packetThreatClassifier = packetThreatClassifier;
         this.properties = properties;
     }
 
@@ -86,6 +89,8 @@ public class ThreatDetectionEngine {
         threatBatchWriter.deleteExisting(analysisId);
         persist(analysisId, findings);
 
+        PacketCounters counters = packetThreatClassifier.classifyAndCount(analysisId, findings);
+
         Map<ThreatSeverity, Long> histogram = histogram(findings);
         long critical = histogram.getOrDefault(ThreatSeverity.CRITICAL, 0L);
         long high = histogram.getOrDefault(ThreatSeverity.HIGH, 0L);
@@ -96,12 +101,14 @@ public class ThreatDetectionEngine {
         long durationMs = (System.nanoTime() - startedAt) / 1_000_000L;
 
         log.info("Detection finished for analysis {}: {} findings from {} rules over {} packets in {} ms "
-                        + "(risk={}, status={})",
-                analysisId, findings.size(), rules.size(), scanned, durationMs, riskScore, status);
+                        + "(risk={}, status={}, malicious={}, safe={})",
+                analysisId, findings.size(), rules.size(), scanned, durationMs, riskScore, status,
+                counters.maliciousPackets(), counters.safePackets());
 
         return new DetectionOutcome(
                 analysisId, scanned, rules.size(), findings.size(),
-                critical, high, medium, low, riskScore, status, durationMs);
+                critical, high, medium, low, riskScore, status, durationMs,
+                counters.maliciousPackets(), counters.safePackets());
     }
 
     /**

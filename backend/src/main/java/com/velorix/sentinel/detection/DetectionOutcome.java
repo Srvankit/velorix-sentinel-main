@@ -24,5 +24,24 @@ public record DetectionOutcome(
         long lowThreats,
         int riskScore,
         OverallStatus overallStatus,
-        long durationMs) {
+        long durationMs,
+        long maliciousPackets,
+        long safePackets) {
+
+    public DetectionOutcome(
+            UUID analysisId,
+            long packetsScanned,
+            int rulesExecuted,
+            long totalThreats,
+            long criticalThreats,
+            long highThreats,
+            long mediumThreats,
+            long lowThreats,
+            int riskScore,
+            OverallStatus overallStatus,
+            long durationMs) {
+        this(analysisId, packetsScanned, rulesExecuted, totalThreats,
+                criticalThreats, highThreats, mediumThreats, lowThreats,
+                riskScore, overallStatus, durationMs, 0L, 0L);
+    }
 }

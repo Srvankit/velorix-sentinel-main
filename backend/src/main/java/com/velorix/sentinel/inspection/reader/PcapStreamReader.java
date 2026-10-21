@@ -3,6 +3,7 @@ package com.velorix.sentinel.inspection.reader;
 import com.velorix.sentinel.exception.CaptureFormatException;
 import com.velorix.sentinel.inspection.CaptureFrameHandler;
 import com.velorix.sentinel.inspection.CapturedFrame;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -44,10 +45,14 @@ public class PcapStreamReader implements CaptureStreamReader {
     }
 
     @Override
-    public long stream(InputStream input, CaptureFrameHandler handler) throws IOException {
+    public CaptureReadResult stream(InputStream input, CaptureFrameHandler handler) throws IOException {
         byte[] header = new byte[GLOBAL_HEADER_BYTES];
         ByteOrderedInput cursor = new ByteOrderedInput(input, false);
-        cursor.readFully(header, 0, GLOBAL_HEADER_BYTES);
+        try {
+            cursor.readFully(header, 0, GLOBAL_HEADER_BYTES);
+        } catch (EOFException ex) {
+            throw new CaptureFormatException("Capture truncated during global header: file ends prematurely", ex);
+        }
 
         long magic = ((header[0] & 0xFFL) << 24)
                 | ((header[1] & 0xFFL) << 16)
@@ -69,7 +74,7 @@ public class PcapStreamReader implements CaptureStreamReader {
         return readRecords(cursor, handler, linkType, nanosecondResolution);
     }
 
-    private long readRecords(
+    private CaptureReadResult readRecords(
             ByteOrderedInput cursor,
             CaptureFrameHandler handler,
             int linkType,
@@ -78,8 +83,23 @@ public class PcapStreamReader implements CaptureStreamReader {
         byte[] recordHeader = new byte[RECORD_HEADER_BYTES];
         byte[] buffer = new byte[8192];
         long number = 0;
+        boolean truncated = false;
 
-        while (cursor.tryReadFully(recordHeader, RECORD_HEADER_BYTES)) {
+        while (true) {
+            boolean hasHeader;
+            try {
+                hasHeader = cursor.tryReadFully(recordHeader, RECORD_HEADER_BYTES);
+            } catch (EOFException ex) {
+                // The stream ended mid-way through a 16-byte record header.
+                // An incomplete/truncated packet header is invalid structural corruption.
+                throw new CaptureFormatException(
+                        "Capture truncated during packet header: packet header is incomplete", ex);
+            }
+
+            if (!hasHeader) {
+                break;
+            }
+
             long seconds = cursor.toUnsignedInt(recordHeader, 0);
             long fraction = cursor.toUnsignedInt(recordHeader, 4);
             int capturedLength = ByteOrderedInput.requireSaneLength(
@@ -90,7 +110,20 @@ public class PcapStreamReader implements CaptureStreamReader {
             if (buffer.length < capturedLength) {
                 buffer = new byte[Integer.highestOneBit(capturedLength - 1) << 1];
             }
-            cursor.readFully(buffer, 0, capturedLength);
+
+            try {
+                cursor.readFully(buffer, 0, capturedLength);
+            } catch (EOFException ex) {
+                if (number >= 1) {
+                    log.warn("libpcap capture truncated during final packet body (frame {}) after {} valid frames",
+                            number + 1, number);
+                    truncated = true;
+                    break;
+                } else {
+                    throw new CaptureFormatException(
+                            "Capture truncated during the first frame body: no valid frames decoded", ex);
+                }
+            }
 
             number++;
             Instant timestamp = Instant.ofEpochSecond(
@@ -102,7 +135,7 @@ public class PcapStreamReader implements CaptureStreamReader {
                 break;
             }
         }
-        return number;
+        return new CaptureReadResult(number, truncated);
     }
 
     private static long bigEndianInt(byte[] source) {

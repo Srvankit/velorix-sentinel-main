@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { riskBand } from "./risk-band";
+import { riskBand, type RiskBandOptions } from "./risk-band";
 
-interface RiskBadgeProps {
+interface RiskBadgeProps extends RiskBandOptions {
   /** Backend risk score between 0 and 100. */
   score: number;
   className?: string;
@@ -9,9 +9,29 @@ interface RiskBadgeProps {
 }
 
 /** Compact 0-100 risk indicator used in tables and detail headers. */
-export function RiskBadge({ score, className, showLabel = true }: RiskBadgeProps) {
+export function RiskBadge({
+  score,
+  status,
+  criticalThreats,
+  highThreats,
+  overallStatus,
+  isDetectionComplete,
+  className,
+  showLabel = true,
+}: RiskBadgeProps) {
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  const band = riskBand(clamped);
+  const band = riskBand(clamped, {
+    status,
+    criticalThreats,
+    highThreats,
+    overallStatus,
+    isDetectionComplete,
+  });
+
+  const title = band.isScanned
+    ? `Risk score ${clamped} of 100 (${band.label})`
+    : `Risk status: ${band.label}`;
+
   return (
     <span
       className={cn(
@@ -19,9 +39,9 @@ export function RiskBadge({ score, className, showLabel = true }: RiskBadgeProps
         band.className,
         className,
       )}
-      title={`Risk score ${clamped} of 100`}
+      title={title}
     >
-      {clamped}
+      {band.isScanned ? clamped : "—"}
       {showLabel && <span className="font-sans">{band.label}</span>}
     </span>
   );

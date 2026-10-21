@@ -3,6 +3,7 @@ package com.velorix.sentinel.inspection.reader;
 import com.velorix.sentinel.exception.CaptureFormatException;
 import com.velorix.sentinel.inspection.CaptureFrameHandler;
 import com.velorix.sentinel.inspection.CapturedFrame;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -53,15 +54,30 @@ public class PcapNgStreamReader implements CaptureStreamReader {
     }
 
     @Override
-    public long stream(InputStream input, CaptureFrameHandler handler) throws IOException {
+    public CaptureReadResult stream(InputStream input, CaptureFrameHandler handler) throws IOException {
         ByteOrderedInput cursor = new ByteOrderedInput(input, true);
         List<Interface> interfaces = new ArrayList<>();
         byte[] blockHeader = new byte[BLOCK_HEADER_BYTES];
         byte[] body = new byte[8192];
         long number = 0;
         boolean sectionSeen = false;
+        boolean truncated = false;
 
-        while (cursor.tryReadFully(blockHeader, BLOCK_HEADER_BYTES)) {
+        while (true) {
+            boolean hasHeader;
+            try {
+                hasHeader = cursor.tryReadFully(blockHeader, BLOCK_HEADER_BYTES);
+            } catch (EOFException ex) {
+                // Unexpected EOF mid-way through an 8-byte block header.
+                // An incomplete block header is unrecoverable structural corruption.
+                throw new CaptureFormatException(
+                        "Capture truncated during block header: block header is incomplete", ex);
+            }
+
+            if (!hasHeader) {
+                break;
+            }
+
             if (isSectionHeader(blockHeader)) {
                 // A new section resets the byte order and the interface table.
                 skipSectionHeader(cursor, blockHeader);
@@ -74,23 +90,55 @@ public class PcapNgStreamReader implements CaptureStreamReader {
             }
 
             long blockType = cursor.toUnsignedInt(blockHeader, 0);
+            long totalLength = cursor.toUnsignedInt(blockHeader, 4);
+            if (totalLength < BLOCK_HEADER_BYTES + BLOCK_TRAILER_BYTES || totalLength % 4 != 0) {
+                throw new CaptureFormatException(
+                        "Block length of %d bytes is invalid; must be at least 12 bytes and 32-bit aligned"
+                                .formatted(totalLength));
+            }
+
             int bodyLength = ByteOrderedInput.requireSaneLength(
-                    cursor.toUnsignedInt(blockHeader, 4) - BLOCK_HEADER_BYTES - BLOCK_TRAILER_BYTES,
+                    totalLength - BLOCK_HEADER_BYTES - BLOCK_TRAILER_BYTES,
                     MAX_BLOCK_BYTES,
                     "Block length");
 
             if (blockType != BLOCK_ENHANCED_PACKET
                     && blockType != BLOCK_SIMPLE_PACKET
                     && blockType != BLOCK_INTERFACE_DESCRIPTION) {
-                cursor.skipFully(bodyLength + (long) BLOCK_TRAILER_BYTES);
+                try {
+                    cursor.skipFully(bodyLength + (long) BLOCK_TRAILER_BYTES);
+                } catch (EOFException ex) {
+                    if (number >= 1) {
+                        log.warn("pcapng capture truncated while skipping trailing block (type 0x{}) after {} valid frames",
+                                Long.toHexString(blockType), number);
+                        truncated = true;
+                        break;
+                    } else {
+                        throw new CaptureFormatException(
+                                "Capture ended while skipping block before any valid frames", ex);
+                    }
+                }
                 continue;
             }
 
             if (body.length < bodyLength) {
                 body = new byte[Math.max(bodyLength, body.length * 2)];
             }
-            cursor.readFully(body, 0, bodyLength);
-            cursor.skipFully(BLOCK_TRAILER_BYTES);
+
+            try {
+                cursor.readFully(body, 0, bodyLength);
+                cursor.skipFully(BLOCK_TRAILER_BYTES);
+            } catch (EOFException ex) {
+                if (number >= 1 && (blockType == BLOCK_ENHANCED_PACKET || blockType == BLOCK_SIMPLE_PACKET)) {
+                    log.warn("pcapng capture truncated during final packet block (frame {}) after {} valid frames",
+                            number + 1, number);
+                    truncated = true;
+                    break;
+                } else {
+                    throw new CaptureFormatException(
+                            "Capture truncated during block body: no valid frames decoded", ex);
+                }
+            }
 
             if (blockType == BLOCK_INTERFACE_DESCRIPTION) {
                 interfaces.add(readInterface(cursor, body, bodyLength));
@@ -102,14 +150,14 @@ public class PcapNgStreamReader implements CaptureStreamReader {
                     ? enhancedFrame(cursor, body, bodyLength, interfaces, number)
                     : simpleFrame(cursor, body, bodyLength, interfaces, number);
             if (!handler.onFrame(frame)) {
-                return number;
+                return new CaptureReadResult(number, truncated);
             }
         }
 
         if (!sectionSeen) {
             throw new CaptureFormatException("The pcapng capture contains no section header block");
         }
-        return number;
+        return new CaptureReadResult(number, truncated);
     }
 
     /**
@@ -119,7 +167,11 @@ public class PcapNgStreamReader implements CaptureStreamReader {
      */
     private void skipSectionHeader(ByteOrderedInput cursor, byte[] blockHeader) throws IOException {
         byte[] magic = new byte[4];
-        cursor.readFully(magic, 0, 4);
+        try {
+            cursor.readFully(magic, 0, 4);
+        } catch (EOFException ex) {
+            throw new CaptureFormatException("Section header block is truncated: missing byte order magic", ex);
+        }
 
         long asLittleEndian = (magic[0] & 0xFFL)
                 | ((magic[1] & 0xFFL) << 8)
@@ -131,10 +183,20 @@ public class PcapNgStreamReader implements CaptureStreamReader {
         long totalLength = cursor.toUnsignedInt(blockHeader, 4);
         log.debug("pcapng section header (littleEndian={}, blockLength={})", littleEndian, totalLength);
 
+        if (totalLength < BLOCK_HEADER_BYTES + 4 || totalLength % 4 != 0) {
+            throw new CaptureFormatException(
+                    "Section header block length of %d bytes is invalid; must be at least 12 bytes and 32-bit aligned"
+                            .formatted(totalLength));
+        }
+
         // Header (8) + byte-order magic (4) are already consumed.
         int remaining = ByteOrderedInput.requireSaneLength(
                 totalLength - BLOCK_HEADER_BYTES - 4, MAX_BLOCK_BYTES, "Section header block length");
-        cursor.skipFully(remaining);
+        try {
+            cursor.skipFully(remaining);
+        } catch (EOFException ex) {
+            throw new CaptureFormatException("Section header block is truncated before section content", ex);
+        }
     }
 
     private Interface readInterface(ByteOrderedInput cursor, byte[] body, int bodyLength) {

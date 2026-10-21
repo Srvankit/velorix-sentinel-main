@@ -40,7 +40,7 @@ interface PacketTableProps {
 const SUSPICIOUS_OPTIONS = [
   { value: "ALL", label: "All frames" },
   { value: "true", label: "Suspicious only" },
-  { value: "false", label: "Clean only" },
+  { value: "false", label: "Unflagged only" },
 ] as const;
 
 function packetTime(iso: string): string {

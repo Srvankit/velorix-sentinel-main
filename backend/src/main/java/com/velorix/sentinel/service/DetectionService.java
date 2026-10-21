@@ -17,4 +17,14 @@ public interface DetectionService {
      *         to scan yet
      */
     DetectionRunResponse run(UUID analysisId);
+
+    /**
+     * Internal background invocation that runs detection over an analysis without requiring
+     * an HTTP SecurityContext. Access is strictly scoped to the supplied analysisId.
+     *
+     * @param analysisId the analysis to scan
+     * @return the outcome of the detection pass
+     */
+    DetectionRunResponse runInternal(UUID analysisId);
 }
+

@@ -5,6 +5,7 @@ import com.velorix.sentinel.entity.enums.AnalysisStage;
 import com.velorix.sentinel.exception.CaptureFormatException;
 import com.velorix.sentinel.inspection.decoder.DecodedPacket;
 import com.velorix.sentinel.inspection.decoder.PacketDecoder;
+import com.velorix.sentinel.inspection.reader.CaptureReadResult;
 import com.velorix.sentinel.inspection.reader.CaptureReaderResolver;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,11 +69,17 @@ public class InspectionEngine {
         Run run = new Run(analysisId, expectedSize, onProgress);
         try (capture) {
             run.emit(AnalysisStage.READING);
-            readerResolver.stream(capture, run::onFrame);
+            CaptureReadResult result = readerResolver.stream(capture, run::onFrame);
+            if (result.truncated()) {
+                run.markTruncated();
+            }
+            if (run.processed == 0) {
+                throw new CaptureFormatException("The capture contains no valid frames to inspect");
+            }
             run.flush();
             run.emit(AnalysisStage.SAVING);
-            log.info("Inspection {} decoded {} frames ({} malformed)",
-                    analysisId, run.processed, run.malformed);
+            log.info("Inspection {} decoded {} frames ({} malformed, truncated={})",
+                    analysisId, run.processed, run.malformed, run.truncated);
             return run.snapshot(AnalysisStage.SAVING);
         } catch (IOException ex) {
             throw new CaptureFormatException("The capture could not be read to the end: " + ex.getMessage(), ex);
@@ -148,6 +155,10 @@ public class InspectionEngine {
                 return false;
             }
             return true;
+        }
+
+        private void markTruncated() {
+            this.truncated = true;
         }
 
         private void flush() {

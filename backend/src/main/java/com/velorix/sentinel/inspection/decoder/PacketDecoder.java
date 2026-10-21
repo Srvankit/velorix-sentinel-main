@@ -6,15 +6,22 @@ import com.velorix.sentinel.inspection.CapturedFrame;
 import java.util.ArrayList;
 import java.util.List;
 import org.pcap4j.packet.ArpPacket;
+import org.pcap4j.packet.Dot1qVlanTagPacket;
 import org.pcap4j.packet.EthernetPacket;
 import org.pcap4j.packet.IcmpV4CommonPacket;
 import org.pcap4j.packet.IcmpV6CommonPacket;
 import org.pcap4j.packet.IllegalRawDataException;
 import org.pcap4j.packet.IpV4Packet;
+import org.pcap4j.packet.IpV6ExtDestinationOptionsPacket;
+import org.pcap4j.packet.IpV6ExtFragmentPacket;
+import org.pcap4j.packet.IpV6ExtHopByHopOptionsPacket;
+import org.pcap4j.packet.IpV6ExtRoutingPacket;
 import org.pcap4j.packet.IpV6Packet;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.UdpPacket;
+import org.pcap4j.packet.UnknownPacket;
+import org.pcap4j.packet.namednumber.IpNumber;
 import org.springframework.stereotype.Component;
 
 /**
@@ -44,6 +51,8 @@ public class PacketDecoder {
     private static final int IPV6_VERSION_NIBBLE = 6;
     private static final String UNKNOWN_ADDRESS = "-";
     private static final int MAX_INFO_LENGTH = 255;
+    private static final int MAX_VLAN_DEPTH = 3;
+    private static final int MAX_IPV6_EXT_DEPTH = 4;
 
     /**
      * Decodes one frame. Never throws for frame level problems.
@@ -59,7 +68,7 @@ public class PacketDecoder {
             }
             if (root instanceof EthernetPacket ethernet) {
                 builder.ethernet(ethernet);
-                decodeNetworkLayer(ethernet.getPayload(), builder);
+                decodeEthernetPayload(ethernet.getPayload(), builder);
             } else {
                 decodeNetworkLayer(root, builder);
             }
@@ -103,24 +112,40 @@ public class PacketDecoder {
         };
     }
 
+    /** Unwraps 802.1Q (and stacked QinQ) VLAN headers before passing to the network layer. */
+    private void decodeEthernetPayload(Packet payload, Builder builder) {
+        Packet current = payload;
+        int depth = 0;
+        Integer outerVlanId = null;
+        Integer innerVlanId = null;
+
+        while (current instanceof Dot1qVlanTagPacket vlan) {
+            depth++;
+            int vid = vlan.getHeader().getVidAsInt();
+            if (outerVlanId == null) {
+                outerVlanId = vid;
+            } else if (innerVlanId == null) {
+                innerVlanId = vid;
+            }
+            if (depth >= MAX_VLAN_DEPTH) {
+                // Stacked beyond supported limit (e.g. triple tagging) - halt recursion conservatively
+                break;
+            }
+            current = vlan.getPayload();
+        }
+
+        if (outerVlanId != null) {
+            builder.vlan(outerVlanId, innerVlanId);
+        }
+
+        decodeNetworkLayer(current, builder);
+    }
+
     private void decodeNetworkLayer(Packet packet, Builder builder) {
         if (packet instanceof IpV4Packet ipv4) {
-            IpV4Packet.IpV4Header header = ipv4.getHeader();
-            builder.network(
-                    NetworkProtocol.IPV4,
-                    header.getSrcAddr().getHostAddress(),
-                    header.getDstAddr().getHostAddress());
-            builder.ttl(Byte.toUnsignedInt(header.getTtl()));
-            builder.checksum(Short.toUnsignedInt(header.getHeaderChecksum()));
-            decodeTransportLayer(ipv4.getPayload(), builder);
+            decodeIpV4(ipv4, builder);
         } else if (packet instanceof IpV6Packet ipv6) {
-            IpV6Packet.IpV6Header header = ipv6.getHeader();
-            builder.network(
-                    NetworkProtocol.IPV6,
-                    header.getSrcAddr().getHostAddress(),
-                    header.getDstAddr().getHostAddress());
-            builder.ttl(Byte.toUnsignedInt(header.getHopLimit()));
-            decodeTransportLayer(ipv6.getPayload(), builder);
+            decodeIpV6(ipv6, builder);
         } else if (packet instanceof ArpPacket arp) {
             ArpPacket.ArpHeader header = arp.getHeader();
             builder.network(
@@ -135,7 +160,136 @@ public class PacketDecoder {
         } else {
             builder.network(NetworkProtocol.OTHER, UNKNOWN_ADDRESS, UNKNOWN_ADDRESS);
             builder.protocol(Protocol.OTHER);
+            builder.payload(packet == null ? 0 : packet.length());
         }
+    }
+
+    private void decodeIpV4(IpV4Packet ipv4, Builder builder) {
+        IpV4Packet.IpV4Header header = ipv4.getHeader();
+        builder.network(
+                NetworkProtocol.IPV4,
+                header.getSrcAddr().getHostAddress(),
+                header.getDstAddr().getHostAddress());
+        builder.ttl(Byte.toUnsignedInt(header.getTtl()));
+        builder.checksum(Short.toUnsignedInt(header.getHeaderChecksum()));
+
+        int fragmentOffset = Short.toUnsignedInt(header.getFragmentOffset());
+        int fragmentOffsetBytes = fragmentOffset * 8;
+        boolean moreFragments = header.getMoreFragmentFlag();
+        int identification = Short.toUnsignedInt(header.getIdentification());
+
+        if (fragmentOffset > 0) {
+            // Non-initial fragment: payload does not contain transport headers.
+            // Do not attempt to parse transport ports or TCP flags from arbitrary fragment payload.
+            builder.protocol(Protocol.OTHER);
+            int payloadLen = ipv4.getPayload() == null ? 0 : ipv4.getPayload().length();
+            builder.payload(payloadLen);
+            builder.info("IPv4 Fragment [offset=%d, more=%b, id=0x%04X, len=%d]".formatted(
+                    fragmentOffsetBytes, moreFragments, identification, payloadLen));
+        } else {
+            // Offset 0: either unfragmented or initial fragment
+            Packet payload = ipv4.getPayload();
+            if (payload != null && !(payload instanceof TcpPacket || payload instanceof UdpPacket || payload instanceof IcmpV4CommonPacket)) {
+                // When moreFragments is true, Pcap4J skips upper-layer packet factories (returning FragmentedPacket/UnknownPacket).
+                // For initial fragments (offset == 0), parse the transport layer if available.
+                Packet parsed = parseTransportPayload(header.getProtocol(), payload.getRawData());
+                if (parsed != null) {
+                    payload = parsed;
+                }
+            }
+            decodeTransportLayer(payload, builder);
+            if (moreFragments) {
+                builder.annotateFragment(fragmentOffsetBytes, true);
+            }
+        }
+    }
+
+    private void decodeIpV6(IpV6Packet ipv6, Builder builder) {
+        IpV6Packet.IpV6Header header = ipv6.getHeader();
+        builder.network(
+                NetworkProtocol.IPV6,
+                header.getSrcAddr().getHostAddress(),
+                header.getDstAddr().getHostAddress());
+        builder.ttl(Byte.toUnsignedInt(header.getHopLimit()));
+
+        Packet current = ipv6.getPayload();
+        int depth = 0;
+        IpV6ExtFragmentPacket fragmentHeader = null;
+
+        while (current != null && depth < MAX_IPV6_EXT_DEPTH) {
+            depth++;
+            if (current instanceof IpV6ExtFragmentPacket frag) {
+                fragmentHeader = frag;
+                current = frag.getPayload();
+                break;
+            } else if (current instanceof IpV6ExtHopByHopOptionsPacket hop) {
+                current = hop.getPayload();
+            } else if (current instanceof IpV6ExtRoutingPacket routing) {
+                current = routing.getPayload();
+            } else if (current instanceof IpV6ExtDestinationOptionsPacket dest) {
+                current = dest.getPayload();
+            } else {
+                break;
+            }
+        }
+
+        if (fragmentHeader != null) {
+            IpV6ExtFragmentPacket.IpV6ExtFragmentHeader fHeader = fragmentHeader.getHeader();
+            int fragmentOffset = Short.toUnsignedInt(fHeader.getFragmentOffset());
+            int fragmentOffsetBytes = fragmentOffset * 8;
+            boolean moreFragments = fHeader.getM();
+            int id = fHeader.getIdentification();
+
+            if (fragmentOffset > 0) {
+                // Non-initial IPv6 fragment: does not carry transport headers.
+                builder.protocol(Protocol.OTHER);
+                int payloadLen = current == null ? 0 : current.length();
+                builder.payload(payloadLen);
+                builder.info("IPv6 Fragment [offset=%d, more=%b, id=0x%08X, len=%d]".formatted(
+                        fragmentOffsetBytes, moreFragments, id, payloadLen));
+                return;
+            } else {
+                // Initial IPv6 fragment (offset 0)
+                if (current != null && !(current instanceof TcpPacket || current instanceof UdpPacket || current instanceof IcmpV6CommonPacket)) {
+                    Packet parsed = parseTransportPayload(fHeader.getNextHeader(), current.getRawData());
+                    if (parsed != null) {
+                        current = parsed;
+                    }
+                }
+                decodeTransportLayer(current, builder);
+                if (moreFragments) {
+                    builder.annotateFragment(fragmentOffsetBytes, true);
+                }
+                return;
+            }
+        }
+
+        // Standard unfragmented IPv6
+        decodeTransportLayer(current, builder);
+    }
+
+    /**
+     * Attempts to parse transport headers from raw payload bytes when upper layer parsing
+     * was skipped by Pcap4J (such as for initial fragments).
+     */
+    private Packet parseTransportPayload(IpNumber ipNumber, byte[] rawData) {
+        if (rawData == null || rawData.length == 0 || ipNumber == null) {
+            return null;
+        }
+        try {
+            if (IpNumber.TCP.equals(ipNumber)) {
+                return TcpPacket.newPacket(rawData, 0, rawData.length);
+            } else if (IpNumber.UDP.equals(ipNumber)) {
+                return UdpPacket.newPacket(rawData, 0, rawData.length);
+            } else if (IpNumber.ICMPV4.equals(ipNumber)) {
+                return IcmpV4CommonPacket.newPacket(rawData, 0, rawData.length);
+            } else if (IpNumber.ICMPV6.equals(ipNumber)) {
+                return IcmpV6CommonPacket.newPacket(rawData, 0, rawData.length);
+            }
+        } catch (IllegalRawDataException | RuntimeException ignored) {
+            // Cannot parse transport header (e.g. truncated fragment or malformed header)
+        }
+        return null;
     }
 
     private void decodeTransportLayer(Packet packet, Builder builder) {
@@ -203,6 +357,10 @@ public class PacketDecoder {
 
     /** Renders the TCP control bits in the conventional Wireshark order. */
     private String flagsOf(TcpPacket.TcpHeader header) {
+        byte[] raw = header.getRawData();
+        boolean cwr = raw != null && raw.length >= 14 && (raw[13] & 0x80) != 0;
+        boolean ece = raw != null && raw.length >= 14 && (raw[13] & 0x40) != 0;
+
         List<String> flags = new ArrayList<>(8);
         if (header.getFin()) {
             flags.add("FIN");
@@ -222,8 +380,12 @@ public class PacketDecoder {
         if (header.getUrg()) {
             flags.add("URG");
         }
-        // ECE and CWR are not exposed as named accessors by Pcap4J's TCP header, so the
-        // flag string stops at the six control bits it does expose.
+        if (ece) {
+            flags.add("ECE");
+        }
+        if (cwr) {
+            flags.add("CWR");
+        }
 
         return String.join(",", flags);
     }
@@ -248,6 +410,8 @@ public class PacketDecoder {
         private Integer windowSize;
         private Integer checksum;
         private String info;
+        private Integer vlanId;
+        private Integer innerVlanId;
 
         private Builder(CapturedFrame frame) {
             this.frame = frame;
@@ -257,6 +421,11 @@ public class PacketDecoder {
             EthernetPacket.EthernetHeader header = ethernet.getHeader();
             this.sourceMac = header.getSrcAddr().toString();
             this.destinationMac = header.getDstAddr().toString();
+        }
+
+        void vlan(int outer, Integer inner) {
+            this.vlanId = outer;
+            this.innerVlanId = inner;
         }
 
         void network(NetworkProtocol value, String source, String destination) {
@@ -297,6 +466,11 @@ public class PacketDecoder {
             this.info = value;
         }
 
+        void annotateFragment(int offsetBytes, boolean more) {
+            String suffix = " (Fragment [offset=%d, more=%b])".formatted(offsetBytes, more);
+            this.info = (this.info == null ? "" : this.info) + suffix;
+        }
+
         DecodedPacket unsupported(String reason) {
             this.info = reason;
             this.protocol = Protocol.OTHER;
@@ -308,6 +482,14 @@ public class PacketDecoder {
         }
 
         private DecodedPacket build(boolean malformed) {
+            String formattedInfo = info;
+            if (vlanId != null) {
+                String prefix = innerVlanId != null
+                        ? "[VLAN %d/%d] ".formatted(vlanId, innerVlanId)
+                        : "[VLAN %d] ".formatted(vlanId);
+                formattedInfo = prefix + (formattedInfo != null ? formattedInfo : "");
+            }
+
             return new DecodedPacket(
                     frame.number(),
                     frame.timestamp(),
@@ -328,8 +510,10 @@ public class PacketDecoder {
                     acknowledgementNumber,
                     windowSize,
                     checksum,
-                    truncate(info),
-                    malformed);
+                    truncate(formattedInfo),
+                    malformed,
+                    false,
+                    vlanId);
         }
 
         private static String truncate(String value) {

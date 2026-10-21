@@ -8,11 +8,16 @@ import com.velorix.sentinel.dto.threat.DetectionRuleResponse;
 import com.velorix.sentinel.dto.threat.ThreatFilter;
 import com.velorix.sentinel.dto.threat.ThreatResponse;
 import com.velorix.sentinel.dto.threat.ThreatStatsResponse;
+import com.velorix.sentinel.entity.Analysis;
 import com.velorix.sentinel.entity.Threat;
+import com.velorix.sentinel.entity.enums.AnalysisStatus;
+import com.velorix.sentinel.entity.enums.OverallStatus;
 import com.velorix.sentinel.entity.enums.ThreatSeverity;
 import com.velorix.sentinel.entity.enums.ThreatType;
 import com.velorix.sentinel.exception.ResourceNotFoundException;
 import com.velorix.sentinel.mapper.ThreatMapper;
+import com.velorix.sentinel.repository.AnalysisRepository;
+import com.velorix.sentinel.repository.AnalysisSummaryRepository;
 import com.velorix.sentinel.repository.ThreatRepository;
 import com.velorix.sentinel.security.CurrentUserProvider;
 import com.velorix.sentinel.service.ThreatService;
@@ -47,16 +52,22 @@ public class ThreatServiceImpl implements ThreatService {
     private static final int TIMELINE_BUCKETS = 24;
 
     private final ThreatRepository threatRepository;
+    private final AnalysisRepository analysisRepository;
+    private final AnalysisSummaryRepository analysisSummaryRepository;
     private final ThreatMapper threatMapper;
     private final CurrentUserProvider currentUserProvider;
     private final DetectionRuleRegistry ruleRegistry;
 
     public ThreatServiceImpl(
             ThreatRepository threatRepository,
+            AnalysisRepository analysisRepository,
+            AnalysisSummaryRepository analysisSummaryRepository,
             ThreatMapper threatMapper,
             CurrentUserProvider currentUserProvider,
             DetectionRuleRegistry ruleRegistry) {
         this.threatRepository = threatRepository;
+        this.analysisRepository = analysisRepository;
+        this.analysisSummaryRepository = analysisSummaryRepository;
         this.threatMapper = threatMapper;
         this.currentUserProvider = currentUserProvider;
         this.ruleRegistry = ruleRegistry;
@@ -109,12 +120,42 @@ public class ThreatServiceImpl implements ThreatService {
         long medium = severityCounts.getOrDefault(ThreatSeverity.MEDIUM, 0L);
         long low = severityCounts.getOrDefault(ThreatSeverity.LOW, 0L);
         long total = critical + high + medium + low;
-        int riskScore = RiskScorer.score(critical, high, medium, low);
+
+        Integer riskScore = null;
+        OverallStatus overallStatus = null;
+
+        if (analysisId != null) {
+            Analysis analysis = (ownerScope == null
+                    ? analysisRepository.findWithDetailsById(analysisId)
+                    : analysisRepository.findByIdAndOwner(analysisId, ownerScope))
+                    .orElseThrow(() -> ResourceNotFoundException.of("Analysis", analysisId));
+
+            boolean detectionCompleted = analysis.getStatus() == AnalysisStatus.COMPLETED
+                    && analysisSummaryRepository.existsByAnalysisId(analysisId);
+
+            if (detectionCompleted) {
+                riskScore = RiskScorer.score(critical, high, medium, low);
+                overallStatus = RiskScorer.status(riskScore, critical, high);
+            }
+        } else {
+            if (total > 0) {
+                riskScore = RiskScorer.score(critical, high, medium, low);
+                overallStatus = RiskScorer.status(riskScore, critical, high);
+            } else {
+                boolean hasCompletedSummaries = ownerScope == null
+                        ? analysisSummaryRepository.count() > 0
+                        : analysisSummaryRepository.existsForOwner(ownerScope);
+                if (hasCompletedSummaries) {
+                    riskScore = 0;
+                    overallStatus = OverallStatus.SECURE;
+                }
+            }
+        }
 
         return new ThreatStatsResponse(
                 total,
                 riskScore,
-                RiskScorer.status(riskScore, critical, high),
+                overallStatus,
                 severityCounts,
                 categoryCounts,
                 hostCounts(threatRepository.topSources(ownerScope, analysisId, PageRequest.of(0, TOP_HOSTS))),

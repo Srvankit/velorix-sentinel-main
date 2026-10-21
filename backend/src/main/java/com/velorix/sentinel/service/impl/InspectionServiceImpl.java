@@ -1,5 +1,4 @@
 package com.velorix.sentinel.service.impl;
-
 import com.velorix.sentinel.config.InspectionExecutorConfig;
 import com.velorix.sentinel.config.properties.InspectionProperties;
 import com.velorix.sentinel.dto.analysis.AnalysisResponse;
@@ -19,6 +18,7 @@ import com.velorix.sentinel.repository.AnalysisRepository;
 import com.velorix.sentinel.repository.UploadedFileRepository;
 import com.velorix.sentinel.security.CurrentUserProvider;
 import com.velorix.sentinel.service.ActivityLogService;
+import com.velorix.sentinel.service.DetectionService;
 import com.velorix.sentinel.service.InspectionService;
 import com.velorix.sentinel.storage.FileStorageService;
 import java.io.InputStream;
@@ -53,6 +53,7 @@ public class InspectionServiceImpl implements InspectionService {
     private final UploadedFileRepository uploadedFileRepository;
     private final AnalysisRepository analysisRepository;
     private final AnalysisRunStateService runState;
+    private final DetectionService detectionService;
     private final FileStorageService storageService;
     private final InspectionEngine engine;
     private final AnalysisMapper analysisMapper;
@@ -65,6 +66,7 @@ public class InspectionServiceImpl implements InspectionService {
             UploadedFileRepository uploadedFileRepository,
             AnalysisRepository analysisRepository,
             AnalysisRunStateService runState,
+            DetectionService detectionService,
             FileStorageService storageService,
             InspectionEngine engine,
             AnalysisMapper analysisMapper,
@@ -75,6 +77,7 @@ public class InspectionServiceImpl implements InspectionService {
         this.uploadedFileRepository = uploadedFileRepository;
         this.analysisRepository = analysisRepository;
         this.runState = runState;
+        this.detectionService = detectionService;
         this.storageService = storageService;
         this.engine = engine;
         this.analysisMapper = analysisMapper;
@@ -107,7 +110,7 @@ public class InspectionServiceImpl implements InspectionService {
         String storageKey = file.getStoredFileName();
         long declaredSize = file.getFileSize();
 
-        submitAfterCommit(() -> execute(analysisId, storageKey, declaredSize));
+        submitAfterCommit(analysisId, () -> execute(analysisId, storageKey, declaredSize));
         log.info("Inspection {} queued for capture {} ({} bytes)", analysisId, uploadedFileId, declaredSize);
         return analysisMapper.toResponse(analysis);
     }
@@ -128,9 +131,19 @@ public class InspectionServiceImpl implements InspectionService {
                         analysisId, capture, declaredSize, snapshot -> runState.saveProgress(analysisId, snapshot));
             }
 
-            runState.complete(analysisId, progress, startedAt);
-            log.info("Inspection {} completed: {} packets in {} ms",
+            log.info("Inspection {} decoded: {} packets in {} ms",
                     analysisId, progress.processedPackets(), Duration.between(startedAt, Instant.now()).toMillis());
+
+            runState.saveInspectionResults(analysisId, progress);
+
+            if (progress.processedPackets() > 0) {
+                log.info("Running automated threat detection for analysis {}", analysisId);
+                detectionService.runInternal(analysisId);
+            }
+
+            runState.complete(analysisId, startedAt);
+            log.info("Inspection and detection {} fully completed in {} ms",
+                    analysisId, Duration.between(startedAt, Instant.now()).toMillis());
         } catch (Exception ex) {
             String reason = ex instanceof ApiException
                     ? ex.getMessage()
@@ -170,7 +183,7 @@ public class InspectionServiceImpl implements InspectionService {
     /* ---------------------------------------------------------------- scheduling */
 
     /** Defers submission until commit so the worker can never race the {@code QUEUED} row. */
-    private void submitAfterCommit(Runnable task) {
+    private void submitAfterCommit(UUID analysisId, Runnable task) {
         Runnable guarded = () -> {
             try {
                 task.run();
@@ -182,19 +195,20 @@ public class InspectionServiceImpl implements InspectionService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    dispatch(guarded);
+                    dispatch(analysisId, guarded);
                 }
             });
         } else {
-            dispatch(guarded);
+            dispatch(analysisId, guarded);
         }
     }
 
-    private void dispatch(Runnable task) {
+    private void dispatch(UUID analysisId, Runnable task) {
         try {
             executor.execute(task);
         } catch (RejectedExecutionException ex) {
-            log.error("Inspection could not be scheduled: {}", ex.getMessage());
+            log.error("Inspection could not be scheduled for analysis {}: {}", analysisId, ex.getMessage());
+            runState.fail(analysisId, "Inspection capacity exceeded. Please retry shortly.", Instant.now());
         }
     }
 }

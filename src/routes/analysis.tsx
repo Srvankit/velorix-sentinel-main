@@ -151,7 +151,14 @@ function AnalysisWorkspace() {
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={analysis.status} />
-                      <RiskBadge score={analysis.riskScore} />
+                      <RiskBadge
+                        score={detail.data?.summary?.riskScore ?? analysis.riskScore}
+                        status={analysis.status}
+                        criticalThreats={detail.data?.summary?.criticalThreats}
+                        highThreats={detail.data?.summary?.highThreats}
+                        overallStatus={detail.data?.summary?.overallStatus}
+                        isDetectionComplete={analysis.status === "COMPLETED" && detail.data?.summary != null}
+                      />
                     </div>
                   </div>
 

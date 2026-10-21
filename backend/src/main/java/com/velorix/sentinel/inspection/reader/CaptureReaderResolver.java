@@ -35,11 +35,11 @@ public class CaptureReaderResolver {
      *
      * @param source  raw capture stream; closed by this method
      * @param handler invoked once per frame
-     * @return the number of frames read
+     * @return the result containing number of frames read and whether tail truncation occurred
      * @throws IOException on an unrecoverable read failure
      * @throws CaptureFormatException when no reader recognises the container
      */
-    public long stream(InputStream source, CaptureFrameHandler handler) throws IOException {
+    public CaptureReadResult stream(InputStream source, CaptureFrameHandler handler) throws IOException {
         try (InputStream buffered = new BufferedInputStream(source, READ_BUFFER_BYTES)) {
             buffered.mark(MAGIC_BYTES);
             byte[] magic = new byte[MAGIC_BYTES];

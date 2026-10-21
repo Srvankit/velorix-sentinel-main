@@ -18,7 +18,12 @@ export {
 } from "./Skeletons";
 export { StatusBadge } from "./StatusBadge";
 export { RiskBadge } from "./RiskBadge";
-export { riskBand } from "./risk-band";
+export {
+  riskBand,
+  type RiskBandOptions,
+  type RiskBandResult,
+  type RiskClassification,
+} from "./risk-band";
 export { DataTable, type DataTableColumn } from "./DataTable";
 export { Timeline, type TimelineItem } from "./Timeline";
 export { ModulePlaceholder } from "./ModulePlaceholder";

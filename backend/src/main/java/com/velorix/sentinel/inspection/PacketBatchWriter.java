@@ -79,7 +79,7 @@ public class PacketBatchWriter {
         statement.setString(index++, packet.sourceMac());
         statement.setString(index++, packet.destinationMac());
         statement.setString(index++, packet.info());
-        statement.setBoolean(index++, false);
+        statement.setBoolean(index++, packet.suspicious());
         statement.setBoolean(index++, packet.malformed());
         statement.setTimestamp(index++, now);
         statement.setTimestamp(index++, now);

@@ -1,5 +1,6 @@
 package com.velorix.sentinel.detection;
 
+import com.velorix.sentinel.entity.enums.AnalysisStatus;
 import com.velorix.sentinel.entity.enums.OverallStatus;
 import com.velorix.sentinel.entity.enums.ThreatSeverity;
 import java.util.Map;
@@ -31,6 +32,10 @@ public final class RiskScorer {
         return (int) Math.min(raw, 100L);
     }
 
+    public static OverallStatus status(int riskScore) {
+        return status(riskScore, 0, 0);
+    }
+
     public static OverallStatus status(int riskScore, long critical, long high) {
         if (critical > 0 || riskScore >= 80) {
             return OverallStatus.CRITICAL;
@@ -46,4 +51,21 @@ public final class RiskScorer {
         }
         return OverallStatus.SECURE;
     }
+
+    /**
+     * Determines overall risk status considering inspection status and detection execution.
+     * Non-completed runs or incomplete detections return {@code null} to prevent false "SECURE" verdicts.
+     */
+    public static OverallStatus status(
+            AnalysisStatus status,
+            boolean isDetectionComplete,
+            int riskScore,
+            long critical,
+            long high) {
+        if (status != AnalysisStatus.COMPLETED || !isDetectionComplete) {
+            return null;
+        }
+        return status(riskScore, critical, high);
+    }
 }
+
