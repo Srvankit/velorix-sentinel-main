@@ -85,7 +85,7 @@ public class ThreatServiceImpl implements ThreatService {
                 blankToNull(filter == null ? null : filter.detectionRule()),
                 filter == null ? null : filter.minConfidence(),
                 filter == null ? null : filter.searchPattern(),
-                pageParams.toPageable());
+                pageParams == null ? new PageRequestParams(null, null, null, null).toThreatPageable() : pageParams.toThreatPageable());
         log.debug("Listed {} threats (ownerScope={})", page.getTotalElements(), ownerScope);
         return PageResponse.from(page, threatMapper::toResponse);
     }

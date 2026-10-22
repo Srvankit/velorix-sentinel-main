@@ -57,7 +57,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                 ownerScope,
                 filter == null ? null : filter.status(),
                 filter == null ? null : filter.uploadedFileId(),
-                pageParams.toPageable());
+                pageParams == null ? new PageRequestParams(null, null, null, null).toAnalysisPageable() : pageParams.toAnalysisPageable());
         log.debug("Listed {} analyses (ownerScope={})", page.getTotalElements(), ownerScope);
         return PageResponse.from(page, analysisMapper::toResponse);
     }

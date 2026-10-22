@@ -55,7 +55,7 @@ public class PacketServiceImpl implements PacketService {
                 filter == null ? null : filter.networkProtocol(),
                 filter == null ? null : filter.suspicious(),
                 filter == null ? null : filter.likePattern(),
-                pageParams.toPageable());
+                pageParams == null ? new PageRequestParams(null, null, null, null).toPacketPageable() : pageParams.toPacketPageable());
         log.debug("Listed {} packets for analysis {}", page.getTotalElements(), analysisId);
         return PageResponse.from(page, packetMapper::toResponse);
     }

@@ -122,7 +122,7 @@ public class CaptureAnalyticsServiceImpl implements CaptureAnalyticsService {
 
     /** Maps the generic page params onto the whitelisted native aliases. */
     private Pageable conversationPageable(PageRequestParams pageParams) {
-        Pageable requested = pageParams == null ? PageRequest.of(0, 20) : pageParams.toPageable();
+        Pageable requested = pageParams == null ? PageRequest.of(0, 20) : pageParams.toPageable(CONVERSATION_SORTS.keySet(), "packets");
         String requestedSort = requested.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("packets");
         String column = CONVERSATION_SORTS.getOrDefault(requestedSort, "packets");
         Sort.Direction direction = requested.getSort().stream()

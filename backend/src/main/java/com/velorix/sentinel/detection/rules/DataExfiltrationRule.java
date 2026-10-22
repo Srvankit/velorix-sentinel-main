@@ -26,8 +26,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataExfiltrationRule implements DetectionRule {
 
-    private static final long BYTES_THRESHOLD = 50L * 1024 * 1024;
-    private static final long SEVERE_BYTES_THRESHOLD = 500L * 1024 * 1024;
+    private static final long DEFAULT_BYTES_THRESHOLD = 10L * 1024 * 1024; // 10 MB
+    private static final long SEVERE_BYTES_THRESHOLD = 50L * 1024 * 1024;  // 50 MB
+
+    private final long bytesThreshold;
+
+    public DataExfiltrationRule() {
+        this(DEFAULT_BYTES_THRESHOLD);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public DataExfiltrationRule(com.velorix.sentinel.config.properties.DetectionProperties properties) {
+        this(properties != null && properties.dataExfiltrationBytesThreshold() != null
+                ? properties.dataExfiltrationBytesThreshold()
+                : DEFAULT_BYTES_THRESHOLD);
+    }
+
+    public DataExfiltrationRule(long bytesThreshold) {
+        this.bytesThreshold = bytesThreshold <= 0 ? DEFAULT_BYTES_THRESHOLD : bytesThreshold;
+    }
 
     private static final RuleMetadata METADATA = new RuleMetadata(
             "data-exfiltration",
@@ -39,7 +56,7 @@ public class DataExfiltrationRule implements DetectionRule {
             "T1048",
             "Exfiltration Over Alternative Protocol",
             "Sums outbound payload bytes per internal source to external destination and reports "
-                    + "pairs exceeding " + (BYTES_THRESHOLD / (1024 * 1024)) + " MB.",
+                    + "pairs exceeding " + (DEFAULT_BYTES_THRESHOLD / (1024 * 1024)) + " MB.",
             "Identify the process and user behind the transfer, verify the destination's reputation, "
                     + "and contain the host if the transfer was not authorised.");
 
@@ -50,16 +67,18 @@ public class DataExfiltrationRule implements DetectionRule {
 
     @Override
     public RuleEvaluator newEvaluator(DetectionContext context) {
-        return new Evaluator(context);
+        return new Evaluator(context, bytesThreshold);
     }
 
     private static final class Evaluator extends AbstractRuleEvaluator {
 
         private final Map<String, Observation> transfers = new HashMap<>();
         private final Map<String, long[]> payloadBytes = new HashMap<>();
+        private final long threshold;
 
-        private Evaluator(DetectionContext context) {
+        private Evaluator(DetectionContext context, long threshold) {
             super(METADATA, context);
+            this.threshold = threshold;
         }
 
         @Override
@@ -84,7 +103,7 @@ public class DataExfiltrationRule implements DetectionRule {
         public List<ThreatCandidate> finish() {
             transfers.forEach((key, observation) -> {
                 long bytes = payloadBytes.getOrDefault(key, new long[1])[0];
-                if (bytes < BYTES_THRESHOLD || !canEmit()) {
+                if (bytes < threshold || !canEmit()) {
                     return;
                 }
                 String source = observation.lastSourceIp();
@@ -95,10 +114,11 @@ public class DataExfiltrationRule implements DetectionRule {
                         Math.min(0.6d + (bytes / (double) SEVERE_BYTES_THRESHOLD) * 0.3d, 0.95d),
                         "Large outbound transfer to " + target,
                         source + " uploaded " + String.format("%.1f", megabytes) + " MB to the external "
-                                + "address " + target + " across " + observation.count() + " packets.",
+                                + "address " + target + " across " + observation.count() + " packets, "
+                                + "a heuristic indicator of potential outbound exfiltration.",
                         "outboundPayloadBytes=" + bytes
                                 + "; megabytes=" + String.format("%.2f", megabytes)
-                                + "; thresholdMb=" + (BYTES_THRESHOLD / (1024 * 1024))
+                                + "; thresholdMb=" + (threshold / (1024 * 1024))
                                 + "; packets=" + observation.count()
                                 + "; bytesPerSecond=" + String.format("%.0f", bytes / observation.spanSeconds()),
                         source,

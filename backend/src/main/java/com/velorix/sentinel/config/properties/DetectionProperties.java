@@ -27,7 +27,13 @@ public record DetectionProperties(
         Integer maxFindingsPerRule,
         Integer maxSampleFrames,
         Integer maxTrackedKeys,
-        Set<String> disabledRules) {
+        Set<String> disabledRules,
+        Integer bruteForceAttemptThreshold,
+        Integer dnsLargePayloadBytes,
+        Long dataExfiltrationBytesThreshold,
+        Integer portScanThreshold,
+        Integer synScanMinSyns,
+        Integer udpScanThreshold) {
 
     public DetectionProperties {
         engineVersion = engineVersion == null || engineVersion.isBlank() ? "detect-1.0.0" : engineVersion;
@@ -37,7 +43,16 @@ public record DetectionProperties(
         maxSampleFrames = positiveOr(maxSampleFrames, 20);
         maxTrackedKeys = positiveOr(maxTrackedKeys, 200_000);
         disabledRules = disabledRules == null ? Set.of() : Set.copyOf(disabledRules);
+        bruteForceAttemptThreshold = positiveOr(bruteForceAttemptThreshold, 30);
+        dnsLargePayloadBytes = positiveOr(dnsLargePayloadBytes, 1232);
+        dataExfiltrationBytesThreshold = dataExfiltrationBytesThreshold == null || dataExfiltrationBytesThreshold <= 0
+                ? 10L * 1024 * 1024
+                : dataExfiltrationBytesThreshold;
+        portScanThreshold = positiveOr(portScanThreshold, 15);
+        synScanMinSyns = positiveOr(synScanMinSyns, 20);
+        udpScanThreshold = positiveOr(udpScanThreshold, 20);
     }
+
 
     public Set<String> disabledRulesOrEmpty() {
         return disabledRules == null ? Collections.emptySet() : disabledRules;

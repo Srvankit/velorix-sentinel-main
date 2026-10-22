@@ -27,11 +27,28 @@ import org.springframework.stereotype.Component;
 public class PortScanRule implements DetectionRule {
 
     /** Distinct ports on one target before the behaviour stops looking like normal use. */
-    private static final int PORT_THRESHOLD = 15;
+    private static final int DEFAULT_PORT_THRESHOLD = 15;
     /** Above this the intent is unambiguous and the finding escalates. */
     private static final int AGGRESSIVE_PORT_THRESHOLD = 100;
     /** Distinct ports retained per pair; beyond it we only keep counting. */
     private static final int MAX_PORTS_TRACKED = 4_096;
+
+    private final int portThreshold;
+
+    public PortScanRule() {
+        this(DEFAULT_PORT_THRESHOLD);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public PortScanRule(com.velorix.sentinel.config.properties.DetectionProperties properties) {
+        this(properties != null && properties.portScanThreshold() != null
+                ? properties.portScanThreshold()
+                : DEFAULT_PORT_THRESHOLD);
+    }
+
+    public PortScanRule(int portThreshold) {
+        this.portThreshold = portThreshold <= 0 ? DEFAULT_PORT_THRESHOLD : portThreshold;
+    }
 
     private static final RuleMetadata METADATA = new RuleMetadata(
             "port-scan",
@@ -43,7 +60,7 @@ public class PortScanRule implements DetectionRule {
             "T1046",
             "Network Service Discovery",
             "Counts distinct destination ports per source/target pair across the capture and "
-                    + "raises a finding once the count exceeds " + PORT_THRESHOLD + ".",
+                    + "raises a finding once the count exceeds " + DEFAULT_PORT_THRESHOLD + ".",
             "Confirm whether the source is an approved scanner. If not, block it at the perimeter, "
                     + "review what the probed services expose and ensure unused ports are closed.");
 
@@ -54,16 +71,18 @@ public class PortScanRule implements DetectionRule {
 
     @Override
     public RuleEvaluator newEvaluator(DetectionContext context) {
-        return new Evaluator(context);
+        return new Evaluator(context, portThreshold);
     }
 
     private static final class Evaluator extends AbstractRuleEvaluator {
 
         private final Map<String, Observation> traffic = new HashMap<>();
         private final Map<String, Set<Integer>> ports = new HashMap<>();
+        private final int threshold;
 
-        private Evaluator(DetectionContext context) {
+        private Evaluator(DetectionContext context, int threshold) {
             super(METADATA, context);
+            this.threshold = threshold;
         }
 
         @Override
@@ -88,7 +107,7 @@ public class PortScanRule implements DetectionRule {
             traffic.forEach((key, observation) -> {
                 Set<Integer> seen = ports.get(key);
                 int distinctPorts = seen == null ? 0 : seen.size();
-                if (distinctPorts < PORT_THRESHOLD || !canEmit()) {
+                if (distinctPorts < threshold || !canEmit()) {
                     return;
                 }
                 boolean aggressive = distinctPorts >= AGGRESSIVE_PORT_THRESHOLD;
@@ -101,7 +120,7 @@ public class PortScanRule implements DetectionRule {
                         source + " probed " + distinctPorts + " distinct ports on " + target
                                 + " using " + observation.count() + " packets.",
                         "distinctPorts=" + distinctPorts
-                                + "; threshold=" + PORT_THRESHOLD
+                                + "; threshold=" + threshold
                                 + "; packets=" + observation.count()
                                 + "; windowSeconds=" + String.format("%.1f", observation.spanSeconds())
                                 + "; portsPerSecond=" + String.format("%.2f", distinctPorts / observation.spanSeconds()),

@@ -27,9 +27,26 @@ public class DnsAnomalyRule implements DetectionRule {
 
     private static final long QUERY_THRESHOLD = 500;
     private static final double QUERY_RATE_THRESHOLD = 20.0d;
-    /** Ordinary DNS messages sit far below this; sustained excess suggests tunnelling. */
-    private static final int LARGE_DNS_PAYLOAD = 512;
+    /** Standard modern EDNS0 buffer threshold (RFC 6891 / DNS Flag Day); excess suggests tunnelling. */
+    private static final int DEFAULT_LARGE_DNS_PAYLOAD = 1232;
     private static final double LARGE_PAYLOAD_RATIO = 0.2d;
+
+    private final int largeDnsPayload;
+
+    public DnsAnomalyRule() {
+        this(DEFAULT_LARGE_DNS_PAYLOAD);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public DnsAnomalyRule(com.velorix.sentinel.config.properties.DetectionProperties properties) {
+        this(properties != null && properties.dnsLargePayloadBytes() != null
+                ? properties.dnsLargePayloadBytes()
+                : DEFAULT_LARGE_DNS_PAYLOAD);
+    }
+
+    public DnsAnomalyRule(int largeDnsPayload) {
+        this.largeDnsPayload = largeDnsPayload <= 0 ? DEFAULT_LARGE_DNS_PAYLOAD : largeDnsPayload;
+    }
 
     private static final RuleMetadata METADATA = new RuleMetadata(
             "dns-anomaly",
@@ -43,7 +60,7 @@ public class DnsAnomalyRule implements DetectionRule {
             "Groups DNS traffic per source and reports sources exceeding " + QUERY_THRESHOLD
                     + " queries, a rate above " + (int) QUERY_RATE_THRESHOLD
                     + " queries per second, or more than " + (int) (LARGE_PAYLOAD_RATIO * 100)
-                    + "% of messages larger than " + LARGE_DNS_PAYLOAD + " bytes.",
+                    + "% of messages larger than " + DEFAULT_LARGE_DNS_PAYLOAD + " bytes.",
             "Inspect the queried domains, restrict clients to approved resolvers and block the "
                     + "domain if the pattern indicates DNS tunnelling.");
 
@@ -54,20 +71,25 @@ public class DnsAnomalyRule implements DetectionRule {
 
     @Override
     public RuleEvaluator newEvaluator(DetectionContext context) {
-        return new Evaluator(context);
+        return new Evaluator(context, largeDnsPayload);
     }
 
     private static final class Evaluator extends AbstractRuleEvaluator {
 
         private final Map<String, Observation> queries = new HashMap<>();
         private final Map<String, long[]> largePayloads = new HashMap<>();
+        private final int largePayloadThreshold;
 
-        private Evaluator(DetectionContext context) {
+        private Evaluator(DetectionContext context, int largePayloadThreshold) {
             super(METADATA, context);
+            this.largePayloadThreshold = largePayloadThreshold;
         }
 
         @Override
         public void accept(PacketRecord packet) {
+            if (packet.sourceIp() == null || "-".equals(packet.sourceIp()) || packet.sourceIp().isBlank()) {
+                return;
+            }
             boolean dnsPort = packet.hasPorts()
                     && (packet.destinationPort() == 53 || packet.sourcePort() == 53);
             if (packet.protocol() != Protocol.DNS && !dnsPort) {
@@ -78,7 +100,7 @@ public class DnsAnomalyRule implements DetectionRule {
                 return;
             }
             observation.record(packet);
-            if (packet.payloadSize() > LARGE_DNS_PAYLOAD) {
+            if (packet.payloadSize() > largePayloadThreshold) {
                 largePayloads.computeIfAbsent(packet.sourceIp(), ignored -> new long[1])[0]++;
             }
         }
@@ -106,12 +128,12 @@ public class DnsAnomalyRule implements DetectionRule {
                                 : "Excessive DNS activity from " + source,
                         source + " generated " + total + " DNS messages at "
                                 + String.format("%.1f", rate) + " per second, "
-                                + large + " of them larger than " + LARGE_DNS_PAYLOAD + " bytes.",
+                                + large + " of them larger than " + largePayloadThreshold + " bytes.",
                         "dnsMessages=" + total
                                 + "; messagesPerSecond=" + String.format("%.2f", rate)
                                 + "; oversizedMessages=" + large
                                 + "; oversizedRatio=" + String.format("%.3f", largeRatio)
-                                + "; oversizedThresholdBytes=" + LARGE_DNS_PAYLOAD,
+                                + "; oversizedThresholdBytes=" + largePayloadThreshold,
                         source,
                         observation.lastDestinationIp(),
                         Protocol.DNS,

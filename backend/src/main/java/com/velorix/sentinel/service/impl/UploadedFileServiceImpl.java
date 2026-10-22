@@ -123,7 +123,7 @@ public class UploadedFileServiceImpl implements UploadedFileService {
         String search = filter == null ? null : filter.normalisedSearch();
         Page<UploadedFile> page = uploadedFileRepository.findAll(
                 UploadedFileSpecifications.visible(ownerScope, status, search),
-                pageParams.toPageable());
+                pageParams == null ? new PageRequestParams(null, null, null, null).toFilePageable() : pageParams.toFilePageable());
         log.debug("Listed {} captures (ownerScope={})", page.getTotalElements(), ownerScope);
         return PageResponse.from(page, uploadedFileMapper::toResponse);
     }

@@ -147,18 +147,20 @@ public interface PacketRepository extends JpaRepository<Packet, UUID>, JpaSpecif
      * Aliases are quoted so PostgreSQL preserves the camel case the projection binds to.</p>
      */
     @Query(value = """
-            SELECT p.source_ip AS "clientIp",
-                   p.destination_ip AS "serverIp",
-                   p.protocol AS "protocol",
-                   MIN(p.destination_port) AS "serverPort",
-                   COUNT(*) AS "packets",
-                   COALESCE(SUM(p.packet_length), 0) AS "bytes",
-                   COALESCE(SUM(CASE WHEN p.is_suspicious THEN 1 ELSE 0 END), 0) AS "suspiciousPackets",
-                   EXTRACT(EPOCH FROM MIN(p.packet_timestamp)) * 1000 AS "startedAtMs",
-                   EXTRACT(EPOCH FROM MAX(p.packet_timestamp)) * 1000 AS "endedAtMs"
-            FROM packets p
-            WHERE p.analysis_id = :analysisId
-            GROUP BY p.source_ip, p.destination_ip, p.protocol
+            SELECT conversations.* FROM (
+                SELECT p.source_ip AS clientIp,
+                       p.destination_ip AS serverIp,
+                       p.protocol AS protocol,
+                       MIN(p.destination_port) AS serverPort,
+                       COUNT(*) AS packets,
+                       COALESCE(SUM(p.packet_length), 0) AS bytes,
+                       COALESCE(SUM(CASE WHEN p.is_suspicious THEN 1 ELSE 0 END), 0) AS suspiciousPackets,
+                       EXTRACT(EPOCH FROM MIN(p.packet_timestamp)) * 1000 AS startedAtMs,
+                       EXTRACT(EPOCH FROM MAX(p.packet_timestamp)) * 1000 AS endedAtMs
+                FROM packets p
+                WHERE p.analysis_id = :analysisId
+                GROUP BY p.source_ip, p.destination_ip, p.protocol
+            ) conversations
             """,
             countQuery = """
                     SELECT COUNT(*) FROM (

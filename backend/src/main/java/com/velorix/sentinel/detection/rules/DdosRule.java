@@ -72,7 +72,7 @@ public class DdosRule implements DetectionRule {
         @Override
         public void accept(PacketRecord packet) {
             String target = packet.destinationIp();
-            if (target == null) {
+            if (target == null || "-".equals(target) || target.isBlank()) {
                 return;
             }
             Observation observation = track(byTarget, target);

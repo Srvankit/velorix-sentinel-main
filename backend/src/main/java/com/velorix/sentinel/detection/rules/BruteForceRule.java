@@ -26,8 +26,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class BruteForceRule implements DetectionRule {
 
-    private static final long ATTEMPT_THRESHOLD = 30;
+    private static final long DEFAULT_ATTEMPT_THRESHOLD = 30;
     private static final long SEVERE_ATTEMPT_THRESHOLD = 200;
+    private static final double MIN_ATTEMPT_RATE_PER_SECOND = 0.1d;
+    private static final double MAX_BENIGN_SPAN_SECONDS = 120.0d;
+
+    private final long attemptThreshold;
+
+    public BruteForceRule() {
+        this(DEFAULT_ATTEMPT_THRESHOLD);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public BruteForceRule(com.velorix.sentinel.config.properties.DetectionProperties properties) {
+        this(properties != null && properties.bruteForceAttemptThreshold() != null
+                ? properties.bruteForceAttemptThreshold()
+                : DEFAULT_ATTEMPT_THRESHOLD);
+    }
+
+    public BruteForceRule(long attemptThreshold) {
+        this.attemptThreshold = attemptThreshold <= 0 ? DEFAULT_ATTEMPT_THRESHOLD : attemptThreshold;
+    }
 
     /** Ports whose whole purpose is authentication, so repetition is meaningful. */
     private static final Map<Integer, String> AUTH_SERVICES = Map.of(
@@ -52,8 +71,8 @@ public class BruteForceRule implements DetectionRule {
             "T1110",
             "Brute Force",
             "Counts connection attempts per source against known authentication ports "
-                    + "(SSH, RDP, FTP, SMB, database and mail services) and reports sources above "
-                    + ATTEMPT_THRESHOLD + " attempts.",
+                    + "(SSH, RDP, FTP, SMB, database and mail services) and reports rapid sustained attempts "
+                    + "exceeding " + DEFAULT_ATTEMPT_THRESHOLD + " attempts.",
             "Lock or rate-limit the targeted accounts, enforce MFA, block the source address and "
                     + "audit the service's authentication log for successful logins from it.");
 
@@ -64,16 +83,18 @@ public class BruteForceRule implements DetectionRule {
 
     @Override
     public RuleEvaluator newEvaluator(DetectionContext context) {
-        return new Evaluator(context);
+        return new Evaluator(context, attemptThreshold);
     }
 
     private static final class Evaluator extends AbstractRuleEvaluator {
 
         private final Map<String, Observation> attempts = new HashMap<>();
         private final Map<String, Integer> portByKey = new HashMap<>();
+        private final long threshold;
 
-        private Evaluator(DetectionContext context) {
+        private Evaluator(DetectionContext context, long threshold) {
             super(METADATA, context);
+            this.threshold = threshold;
         }
 
         @Override
@@ -96,7 +117,12 @@ public class BruteForceRule implements DetectionRule {
         @Override
         public List<ThreatCandidate> finish() {
             attempts.forEach((key, observation) -> {
-                if (observation.count() < ATTEMPT_THRESHOLD || !canEmit()) {
+                if (observation.count() < threshold || !canEmit()) {
+                    return;
+                }
+                // False positive mitigation: slow periodic admin logins spread across a long capture
+                // window do not represent a brute force attack.
+                if (observation.rate() < MIN_ATTEMPT_RATE_PER_SECOND && observation.spanSeconds() > MAX_BENIGN_SPAN_SECONDS) {
                     return;
                 }
                 Integer port = portByKey.get(key);
@@ -112,8 +138,9 @@ public class BruteForceRule implements DetectionRule {
                         "service=" + service
                                 + "; destinationPort=" + port
                                 + "; attempts=" + observation.count()
-                                + "; threshold=" + ATTEMPT_THRESHOLD
-                                + "; attemptsPerSecond=" + String.format("%.2f", observation.rate()),
+                                + "; threshold=" + threshold
+                                + "; attemptsPerSecond=" + String.format("%.2f", observation.rate())
+                                + "; spanSeconds=" + String.format("%.1f", observation.spanSeconds()),
                         source,
                         target,
                         Protocol.TCP,

@@ -34,9 +34,16 @@ public record PacketRecord(
         return tcpFlags != null && !tcpFlags.isEmpty() && containsToken(tcpFlags, flag);
     }
 
-    /** A connection attempt: SYN set, ACK clear. */
+    /** True when the frame represents a TCP-based transport segment. */
+    public boolean isTcp() {
+        return protocol == Protocol.TCP || protocol == Protocol.HTTP
+                || protocol == Protocol.HTTPS || protocol == Protocol.TLS
+                || (tcpFlags != null && !tcpFlags.isEmpty());
+    }
+
+    /** A connection attempt: SYN set; ACK, RST, and FIN clear; valid transport ports present. */
     public boolean isSynOnly() {
-        return protocol == Protocol.TCP && hasFlag(SYN) && !hasFlag(ACK);
+        return isTcp() && hasPorts() && hasFlag(SYN) && !hasFlag(ACK) && !hasFlag(RST) && !hasFlag(FIN);
     }
 
     /** A refused or torn down connection, i.e. evidence a probe hit a closed door. */

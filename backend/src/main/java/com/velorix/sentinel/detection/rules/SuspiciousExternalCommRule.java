@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class SuspiciousExternalCommRule implements DetectionRule {
 
     private static final Set<Integer> EXPECTED_EGRESS_PORTS = Set.of(
-            53, 67, 68, 80, 123, 443, 465, 587, 993, 995, 8080, 8443);
+            53, 67, 68, 80, 123, 443, 465, 587, 853, 993, 995, 8080, 8443);
     private static final long PACKET_THRESHOLD = 20;
     /** Ports above this range are ephemeral for servers too, so treat them as louder signals. */
     private static final int HIGH_PORT_FLOOR = 1024;

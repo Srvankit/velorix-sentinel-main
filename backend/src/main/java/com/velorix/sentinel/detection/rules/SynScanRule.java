@@ -26,9 +26,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class SynScanRule implements DetectionRule {
 
-    private static final int MIN_SYNS = 20;
+    private static final int DEFAULT_MIN_SYNS = 20;
     private static final double MAX_COMPLETION_RATIO = 0.25d;
     private static final int AGGRESSIVE_SYNS = 200;
+
+    private final int minSyns;
+
+    public SynScanRule() {
+        this(DEFAULT_MIN_SYNS);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public SynScanRule(com.velorix.sentinel.config.properties.DetectionProperties properties) {
+        this(properties != null && properties.synScanMinSyns() != null
+                ? properties.synScanMinSyns()
+                : DEFAULT_MIN_SYNS);
+    }
+
+    public SynScanRule(int minSyns) {
+        this.minSyns = minSyns <= 0 ? DEFAULT_MIN_SYNS : minSyns;
+    }
 
     private static final RuleMetadata METADATA = new RuleMetadata(
             "syn-scan",
@@ -41,7 +58,7 @@ public class SynScanRule implements DetectionRule {
             "Network Service Discovery",
             "Tracks SYN-without-ACK packets per source and compares them against the ACKs that "
                     + "source received. A completion ratio below "
-                    + (int) (MAX_COMPLETION_RATIO * 100) + "% over at least " + MIN_SYNS
+                    + (int) (MAX_COMPLETION_RATIO * 100) + "% over at least " + DEFAULT_MIN_SYNS
                     + " attempts is reported.",
             "Rate-limit or block the source at the firewall, enable SYN cookies on exposed hosts "
                     + "and verify no service accepted a connection from it.");
@@ -53,22 +70,23 @@ public class SynScanRule implements DetectionRule {
 
     @Override
     public RuleEvaluator newEvaluator(DetectionContext context) {
-        return new Evaluator(context);
+        return new Evaluator(context, minSyns);
     }
 
     private static final class Evaluator extends AbstractRuleEvaluator {
 
         private final Map<String, Observation> syns = new HashMap<>();
         private final Map<String, long[]> responses = new HashMap<>();
+        private final int threshold;
 
-        private Evaluator(DetectionContext context) {
+        private Evaluator(DetectionContext context, int threshold) {
             super(METADATA, context);
+            this.threshold = threshold;
         }
 
         @Override
         public void accept(PacketRecord packet) {
-            if (packet.protocol() != Protocol.TCP && packet.protocol() != Protocol.HTTP
-                    && packet.protocol() != Protocol.HTTPS && packet.protocol() != Protocol.TLS) {
+            if (!packet.isTcp() || !packet.hasPorts()) {
                 return;
             }
             if (packet.isSynOnly()) {
@@ -79,7 +97,8 @@ public class SynScanRule implements DetectionRule {
                 return;
             }
             // Traffic returning to the scanner tells us whether handshakes completed.
-            if (packet.hasFlag("ACK")) {
+            // Pure/data ACKs indicate completion; RST,ACK indicates a refused connection.
+            if (packet.hasFlag("ACK") && !packet.hasFlag("RST")) {
                 counters(packet.destinationIp())[0]++;
             }
             if (packet.isResetOrFin()) {
@@ -95,7 +114,7 @@ public class SynScanRule implements DetectionRule {
         public List<ThreatCandidate> finish() {
             syns.forEach((source, observation) -> {
                 long attempts = observation.count();
-                if (attempts < MIN_SYNS || !canEmit()) {
+                if (attempts < threshold || !canEmit()) {
                     return;
                 }
                 long[] counters = responses.getOrDefault(source, new long[2]);
