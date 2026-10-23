@@ -5,6 +5,7 @@ import com.velorix.sentinel.config.properties.CorsProperties;
 import com.velorix.sentinel.config.properties.DetectionProperties;
 import com.velorix.sentinel.config.properties.InspectionProperties;
 import com.velorix.sentinel.config.properties.JwtProperties;
+import com.velorix.sentinel.config.properties.MailProperties;
 import com.velorix.sentinel.config.properties.RetentionProperties;
 import com.velorix.sentinel.config.properties.StorageProperties;
 import org.springframework.boot.SpringApplication;
@@ -19,6 +20,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         JwtProperties.class,
         CorsProperties.class,
         AppProperties.class,
+        MailProperties.class,
         StorageProperties.class,
         InspectionProperties.class,
         DetectionProperties.class,

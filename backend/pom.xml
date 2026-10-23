@@ -52,6 +52,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
 
         <!-- Pure Java packet decoders. Only the decoding half of Pcap4J is used;
              no native libpcap is loaded because captures are read from files. -->

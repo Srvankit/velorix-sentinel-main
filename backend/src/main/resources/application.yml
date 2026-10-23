@@ -50,6 +50,22 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+            required: ${SMTP_STARTTLS_REQUIRED:true}
+          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
+          timeout: ${SMTP_READ_TIMEOUT:5000}
+          writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
+
 server:
   # Render injects PORT when available; Docker defaults to the exposed web port.
   # Local development remains on 8081 unless PORT or SERVER_PORT is overridden.
@@ -61,6 +77,9 @@ server:
     context-path: /
 
 velorix:
+  mail:
+    from: ${MAIL_FROM:noreply@velorix.com}
+    from-name: ${MAIL_FROM_NAME:Velorix Sentinel}
   app:
     # Public URL of the Velorix Sentinel web console; used to build email links.
     frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:8080}
@@ -138,8 +157,9 @@ management:
 logging:
   level:
     root: INFO
-    com.velorix.sentinel: ${LOG_LEVEL_APP:DEBUG}
+    com.velorix.sentinel: ${LOG_LEVEL_APP:INFO}
     org.springframework.security: INFO
+    org.springframework.mail: INFO
     org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:INFO}
     org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_HIBERNATE_BIND:INFO}
   pattern:
