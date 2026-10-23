@@ -2,6 +2,7 @@ package com.velorix.sentinel.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 /**
@@ -9,9 +10,11 @@ import java.util.regex.Pattern;
  */
 public class StrongPasswordValidator implements ConstraintValidator<StrongPassword, String> {
 
-    public static final int MIN_LENGTH = 8;
-    /** BCrypt only consumes the first 72 bytes. */
+    public static final int MIN_LENGTH = 10;
+    /** Character length upper bound. */
     public static final int MAX_LENGTH = 72;
+    /** BCrypt only consumes the first 72 bytes. Passwords exceeding 72 UTF-8 bytes are rejected. */
+    public static final int MAX_BYTE_LENGTH = 72;
 
     private static final Pattern UPPERCASE = Pattern.compile("[A-Z]");
     private static final Pattern LOWERCASE = Pattern.compile("[a-z]");
@@ -24,6 +27,9 @@ public class StrongPasswordValidator implements ConstraintValidator<StrongPasswo
             return false;
         }
         if (value.length() < MIN_LENGTH || value.length() > MAX_LENGTH) {
+            return false;
+        }
+        if (value.getBytes(StandardCharsets.UTF_8).length > MAX_BYTE_LENGTH) {
             return false;
         }
         return UPPERCASE.matcher(value).find()

@@ -11,8 +11,8 @@ export interface AuthContextValue {
   /** Set when the backend rejected the stored token and it could not be renewed. */
   sessionExpired: boolean;
   login: (payload: LoginRequest) => Promise<AuthUser>;
-  /** Creates the account, then signs the new user in. */
-  register: (payload: RegisterRequest) => Promise<AuthUser>;
+  /** Submits account registration and dispatches a verification email. */
+  register: (payload: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   /** Exchange the refresh token for a fresh session. */
   refreshSession: () => Promise<void>;

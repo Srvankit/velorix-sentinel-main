@@ -31,3 +31,14 @@ export function scorePassword(value: string): PasswordStrength {
   const score = Math.max(0, Math.min(4, passed - 1));
   return { score, label: LABELS[score], unmet };
 }
+
+/**
+ * Validates that a password satisfies all frontend requirements:
+ * 10-72 characters, maximum 72 UTF-8 bytes, uppercase, lowercase, digit, and special character.
+ */
+export function isStrongPassword(value: string): boolean {
+  if (!value) return false;
+  if (value.length < 10 || value.length > 72) return false;
+  if (typeof TextEncoder !== "undefined" && new TextEncoder().encode(value).length > 72) return false;
+  return RULES.every((r) => r.test(value));
+}

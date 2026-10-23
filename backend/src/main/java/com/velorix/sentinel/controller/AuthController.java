@@ -48,17 +48,16 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "Register a new account",
-            description = "Creates an unverified account and dispatches a verification email.")
+            description = "Registers an account and dispatches a verification email if eligible.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Account created"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already registered")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Registration request received"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed")
     })
-    public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest request) {
         log.debug("Registration requested");
-        UserResponse user = authService.register(request);
+        authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(user, "Account created successfully", HttpStatus.CREATED));
+                .body(ApiResponse.success(null, "If eligible, a verification link has been sent.", HttpStatus.CREATED));
     }
 
     @PostMapping("/login")

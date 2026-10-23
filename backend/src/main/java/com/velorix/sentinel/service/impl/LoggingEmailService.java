@@ -1,5 +1,6 @@
 package com.velorix.sentinel.service.impl;
 
+import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

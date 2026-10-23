@@ -91,11 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (payload: RegisterRequest) => {
       await authService.register(payload);
-      const next = await authService.login({ email: payload.email, password: payload.password });
-      persistSession(next);
-      return next.user;
     },
-    [persistSession],
+    [],
   );
 
   const logout = useCallback(async () => {

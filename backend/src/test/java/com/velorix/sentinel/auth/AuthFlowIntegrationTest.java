@@ -42,7 +42,25 @@ class AuthFlowIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private com.velorix.sentinel.repository.ActivityLogRepository activityLogRepository;
+
+    @Autowired
+    private com.velorix.sentinel.repository.RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private com.velorix.sentinel.repository.VerificationTokenRepository verificationTokenRepository;
+
+    @Autowired
     private VerificationTokenService verificationTokenService;
+
+    @org.junit.jupiter.api.BeforeEach
+    @org.junit.jupiter.api.AfterEach
+    void cleanUp() {
+        activityLogRepository.deleteAll();
+        verificationTokenRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
+        userRepository.deleteAll();
+    }
 
     @Test
     void registersLogsInRefreshesAndLogsOut() throws Exception {
@@ -57,28 +75,46 @@ class AuthFlowIntegrationTest {
                         "confirmPassword", PASSWORD)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.email").value(email))
-                .andExpect(jsonPath("$.data.role").value(Role.USER.name()))
-                .andExpect(jsonPath("$.data.verified").value(false));
+                .andExpect(jsonPath("$.message").value("If eligible, a verification link has been sent."))
+                .andExpect(jsonPath("$.data").doesNotExist());
 
         User stored = userRepository.findByEmailIgnoreCase(email).orElseThrow();
         assertThat(stored.getPassword()).isNotEqualTo(PASSWORD).startsWith("$2");
+        assertThat(stored.getRole()).isEqualTo(Role.USER);
+        assertThat(stored.isVerified()).isFalse();
 
-        // Duplicate email is rejected
+        // Duplicate email registration suppresses enumeration and does not duplicate account
+        long countBefore = userRepository.count();
         mockMvc.perform(json(post("/api/auth/register"), Map.of(
                         "firstName", "Ada",
                         "lastName", "Lovelace",
                         "email", email,
                         "password", PASSWORD,
                         "confirmPassword", PASSWORD)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist());
+        assertThat(userRepository.count()).isEqualTo(countBefore);
 
         // Wrong password
         mockMvc.perform(json(post("/api/auth/login"), Map.of("email", email, "password", "Wr0ng!Passw0rd")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false));
 
-        // Login
+        // Login is rejected with 403 Forbidden because account is not yet verified
+        mockMvc.perform(json(post("/api/auth/login"), Map.of("email", email, "password", PASSWORD, "rememberMe", true)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Email verification is required before login."))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        // Verify email address
+        String verificationToken = verificationTokenService.issue(stored, TokenPurpose.EMAIL_VERIFICATION);
+        mockMvc.perform(json(post("/api/auth/verify-email"), Map.of("token", verificationToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.verified").value(true));
+
+        // Now login succeeds
         JsonNode session = body(mockMvc.perform(
                         json(post("/api/auth/login"), Map.of("email", email, "password", PASSWORD, "rememberMe", true)))
                 .andExpect(status().isOk())

@@ -16,6 +16,7 @@ import com.velorix.sentinel.entity.VerificationToken;
 import com.velorix.sentinel.entity.enums.ActivityType;
 import com.velorix.sentinel.entity.enums.Role;
 import com.velorix.sentinel.entity.enums.TokenPurpose;
+import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UserMapper;
@@ -98,10 +99,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public void register(RegisterRequest request) {
         String email = normalizeEmail(request.email());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResourceConflictException("An account with this email already exists");
+        Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email);
+        if (existingUser.isPresent()) {
+            log.debug("Registration requested for existing email; suppressing enumeration");
+            return;
         }
 
         User user = userRepository.save(User.builder()
@@ -117,8 +120,6 @@ public class AuthServiceImpl implements AuthService {
         dispatchVerificationEmail(user);
         activityLogService.success(user, ActivityType.REGISTRATION, "Account registered");
         log.info("Registered account {}", user.getId());
-
-        return userMapper.toResponse(user);
     }
 
     @Override
@@ -139,6 +140,13 @@ public class AuthServiceImpl implements AuthService {
 
         if (user == null) {
             throw new UnauthorizedException(INVALID_CREDENTIALS);
+        }
+
+        if (!user.isVerified()) {
+            SecurityContextHolder.clearContext();
+            activityLogService.failure(user, ActivityType.LOGIN_FAILURE, "Unverified email address");
+            log.info("Rejected login for unverified user {}", user.getId());
+            throw new ForbiddenException("Email verification is required before login.");
         }
 
         activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful sign-in");

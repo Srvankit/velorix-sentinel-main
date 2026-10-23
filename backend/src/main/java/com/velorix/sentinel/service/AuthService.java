@@ -16,7 +16,7 @@ import com.velorix.sentinel.dto.auth.VerifyEmailRequest;
  */
 public interface AuthService {
 
-    UserResponse register(RegisterRequest request);
+    void register(RegisterRequest request);
 
     AuthResponse login(LoginRequest request);
 

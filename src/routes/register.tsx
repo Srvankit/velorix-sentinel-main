@@ -69,7 +69,11 @@ function RegisterPage() {
         password: values.password,
         confirmPassword: values.confirmPassword,
       });
-      await navigate({ to: ROUTES.dashboard, replace: true });
+      await navigate({
+        to: ROUTES.verifyEmail,
+        search: { email: values.email.trim() },
+        replace: true,
+      });
     } catch (err) {
       const apiError = toApiError(err);
       Object.entries(apiError.fieldErrors ?? {}).forEach(([field, message]) => {

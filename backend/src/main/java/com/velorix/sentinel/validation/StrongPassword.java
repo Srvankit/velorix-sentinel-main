@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
 public @interface StrongPassword {
 
     String message() default
-            "Password must be 8-72 characters and include an uppercase letter, a lowercase letter, "
+            "Password must be 10-72 characters and include an uppercase letter, a lowercase letter, "
                     + "a digit and a special character";
 
     Class<?>[] groups() default {};

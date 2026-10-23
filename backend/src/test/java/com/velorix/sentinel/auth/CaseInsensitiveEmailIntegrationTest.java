@@ -93,9 +93,12 @@ class CaseInsensitiveEmailIntegrationTest {
                                 "confirmPassword", PASSWORD))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.email").value(lowercaseEmail));
+                .andExpect(jsonPath("$.data").doesNotExist());
 
-        // Attempting registration with lowercase variant is rejected with 409
+        assertThat(userRepository.count()).isEqualTo(1);
+        assertThat(userRepository.findByEmailIgnoreCase(lowercaseEmail)).isPresent();
+
+        // Attempting registration with lowercase variant returns generic 201 without creating duplicate
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
@@ -104,10 +107,13 @@ class CaseInsensitiveEmailIntegrationTest {
                                 "email", lowercaseEmail,
                                 "password", PASSWORD,
                                 "confirmPassword", PASSWORD))))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist());
 
-        // Attempting registration with uppercase variant is also rejected with 409
+        assertThat(userRepository.count()).isEqualTo(1);
+
+        // Attempting registration with uppercase variant returns generic 201 without creating duplicate
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
@@ -116,8 +122,11 @@ class CaseInsensitiveEmailIntegrationTest {
                                 "email", uppercaseEmail,
                                 "password", PASSWORD,
                                 "confirmPassword", PASSWORD))))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        assertThat(userRepository.count()).isEqualTo(1);
     }
 
     @Test

@@ -6,6 +6,10 @@ const passwordSchema = z
   .string()
   .min(10, "Password must be at least 10 characters")
   .max(72, "Password must be at most 72 characters")
+  .refine(
+    (val) => typeof TextEncoder === "undefined" || new TextEncoder().encode(val).length <= 72,
+    "Password must not exceed 72 bytes",
+  )
   .regex(/[A-Z]/, "Include at least one uppercase letter")
   .regex(/[a-z]/, "Include at least one lowercase letter")
   .regex(/[0-9]/, "Include at least one number")

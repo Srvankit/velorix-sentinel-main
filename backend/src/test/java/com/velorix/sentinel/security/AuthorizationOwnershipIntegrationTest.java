@@ -87,6 +87,9 @@ class AuthorizationOwnershipIntegrationTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private com.velorix.sentinel.repository.VerificationTokenRepository verificationTokenRepository;
+
     private User userA;
     private User userB;
     private User admin;
@@ -109,6 +112,7 @@ class AuthorizationOwnershipIntegrationTest {
         uploadedFileRepository.deleteAll();
         activityLogRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        verificationTokenRepository.deleteAll();
         userRepository.deleteAll();
 
         userA = seedUser("alice", Role.USER);

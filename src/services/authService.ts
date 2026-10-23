@@ -30,9 +30,9 @@ export const AUTH_ENDPOINTS = {
 } as const;
 
 export const authService = {
-  /** POST /api/auth/register — creates the account, returns the new profile. */
+  /** POST /api/auth/register — submits account registration and dispatches a verification email. */
   register: (payload: RegisterRequest) =>
-    api.post<AuthUser, RegisterRequest>(AUTH_ENDPOINTS.register, payload),
+    api.post<void, RegisterRequest>(AUTH_ENDPOINTS.register, payload),
 
   /** POST /api/auth/login */
   login: (payload: LoginRequest) =>

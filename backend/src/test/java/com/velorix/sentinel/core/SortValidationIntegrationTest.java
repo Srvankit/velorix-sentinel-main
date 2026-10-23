@@ -79,6 +79,9 @@ class SortValidationIntegrationTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private com.velorix.sentinel.repository.VerificationTokenRepository verificationTokenRepository;
+
     private String authToken;
     private Analysis analysis;
 
@@ -91,6 +94,7 @@ class SortValidationIntegrationTest {
         uploadedFileRepository.deleteAll();
         activityLogRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        verificationTokenRepository.deleteAll();
         userRepository.deleteAll();
 
         User user = userRepository.save(User.builder()
