@@ -68,6 +68,18 @@ public class TransactionalEmailService implements EmailService {
                 EmailLogSanitizer.describeRecipient(user));
     }
 
+    @Override
+    public void sendOAuthLinked(User user, String provider) {
+        String cleanProvider = provider != null ? provider : "social";
+        sendMimeMessage(
+                user != null ? user.getEmail() : null,
+                "Security Alert: Your Velorix Sentinel account was linked to " + cleanProvider,
+                buildOAuthLinkedText(user, cleanProvider),
+                buildOAuthLinkedHtml(user, cleanProvider),
+                "oauth-linked",
+                EmailLogSanitizer.describeRecipient(user));
+    }
+
     private void sendMimeMessage(
             String to,
             String subject,
@@ -220,6 +232,43 @@ public class TransactionalEmailService implements EmailService {
             </div>
             """.formatted(safeName, safeEmail);
         return buildEmailHtml("Security Alert: Velorix Sentinel Password Changed", body);
+    }
+
+    private String buildOAuthLinkedText(User user, String provider) {
+        return """
+            Hello %s,
+
+            A new social login (%s) was recently linked to your Velorix Sentinel account (%s).
+
+            If you performed this action, no further steps are required.
+
+            If you did not authorize this change, please contact your security administrator or reset your password immediately.
+
+            — The Velorix Sentinel Security Team
+            """.formatted(getDisplayName(user), provider, user != null ? user.getEmail() : "");
+    }
+
+    private String buildOAuthLinkedHtml(User user, String provider) {
+        String safeName = HtmlUtils.htmlEscape(getDisplayName(user));
+        String safeEmail = HtmlUtils.htmlEscape(user != null ? user.getEmail() : "");
+        String safeProvider = HtmlUtils.htmlEscape(provider);
+        String body = """
+            <div style="background-color: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #818cf8;">Security Alert: Social Account Linked</h2>
+            </div>
+            <p style="margin: 0 0 16px 0;">Hello %s,</p>
+            <p style="margin: 0 0 16px 0;">A new social login provider (<strong>%s</strong>) was successfully linked to your Velorix Sentinel account (<strong>%s</strong>).</p>
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #94a3b8;">If you performed this action, no further steps are required.</p>
+            <div style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 16px; margin: 24px 0;">
+                <p style="margin: 0; font-size: 13px; color: #f87171; font-weight: 500;">
+                    Did not authorize this linking?
+                </p>
+                <p style="margin: 6px 0 0 0; font-size: 12px; color: #fca5a5;">
+                    If you did not authorize linking your account to %s, your account may be compromised. Please reset your password immediately or contact your administrator.
+                </p>
+            </div>
+            """.formatted(safeName, safeProvider, safeEmail, safeProvider);
+        return buildEmailHtml("Security Alert: Velorix Sentinel Social Account Linked", body);
     }
 
     private String buildEmailHtml(String title, String bodyContent) {

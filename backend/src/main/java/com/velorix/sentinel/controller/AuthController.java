@@ -4,6 +4,7 @@ import com.velorix.sentinel.common.ApiResponse;
 import com.velorix.sentinel.constants.ApiConstants;
 import com.velorix.sentinel.dto.auth.AuthResponse;
 import com.velorix.sentinel.dto.auth.ForgotPasswordRequest;
+import com.velorix.sentinel.dto.auth.LinkOAuthRequest;
 import com.velorix.sentinel.dto.auth.LoginRequest;
 import com.velorix.sentinel.dto.auth.RefreshTokenRequest;
 import com.velorix.sentinel.dto.auth.RegisterRequest;
@@ -124,5 +125,19 @@ public class AuthController {
             security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<ApiResponse<UserResponse>> me() {
         return ResponseEntity.ok(ApiResponse.success(authService.currentUser(), "Profile loaded"));
+    }
+
+    @PostMapping("/link-oauth")
+    @Operation(summary = "Link a social OAuth account to the currently authenticated user",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OAuth identity linked successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "OAuth identity already linked to another account")
+    })
+    public ResponseEntity<ApiResponse<Void>> linkOAuth(@Valid @RequestBody LinkOAuthRequest request) {
+        authService.linkOAuth(request.provider(), request.providerId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Social account linked successfully"));
     }
 }

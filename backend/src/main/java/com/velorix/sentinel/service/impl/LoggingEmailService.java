@@ -30,4 +30,9 @@ public class LoggingEmailService implements EmailService {
     public void sendPasswordChanged(User user) {
         log.info("[email-fallback] Password changed notification event for {}", EmailLogSanitizer.describeRecipient(user));
     }
+
+    @Override
+    public void sendOAuthLinked(User user, String provider) {
+        log.info("[email-fallback] OAuth provider linked notification event for {}", EmailLogSanitizer.describeRecipient(user));
+    }
 }

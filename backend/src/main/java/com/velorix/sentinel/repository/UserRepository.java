@@ -17,5 +17,9 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     boolean existsByEmailIgnoreCase(String email);
 
+    Optional<User> findByOauthProviderAndOauthProviderId(String oauthProvider, String oauthProviderId);
+
+    boolean existsByOauthProviderAndOauthProviderId(String oauthProvider, String oauthProviderId);
+
     Page<User> findAllByRole(Role role, Pageable pageable);
 }

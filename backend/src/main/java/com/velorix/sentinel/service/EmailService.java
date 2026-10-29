@@ -15,4 +15,6 @@ public interface EmailService {
     void sendPasswordReset(User user, String resetUrl);
 
     void sendPasswordChanged(User user);
+
+    void sendOAuthLinked(User user, String provider);
 }

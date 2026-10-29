@@ -6,6 +6,7 @@ import com.velorix.sentinel.security.JwtAccessDeniedHandler;
 import com.velorix.sentinel.security.JwtAuthenticationEntryPoint;
 import com.velorix.sentinel.security.JwtAuthenticationFilter;
 import com.velorix.sentinel.security.OAuth2LoginSuccessHandler;
+import com.velorix.sentinel.security.OAuth2LoginFailureHandler;
 import com.velorix.sentinel.security.GitHubOAuth2UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final JwtAccessDeniedHandler accessDeniedHandler;
     private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
     private final OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oauth2LoginFailureHandler;
     private final GitHubOAuth2UserService oauth2UserService;
 
     public SecurityConfig(
@@ -48,12 +50,14 @@ public class SecurityConfig {
             JwtAccessDeniedHandler accessDeniedHandler,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             OAuth2LoginSuccessHandler oauth2LoginSuccessHandler,
+            OAuth2LoginFailureHandler oauth2LoginFailureHandler,
             GitHubOAuth2UserService oauth2UserService) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.clientRegistrations = clientRegistrations;
         this.oauth2LoginSuccessHandler = oauth2LoginSuccessHandler;
+        this.oauth2LoginFailureHandler = oauth2LoginFailureHandler;
         this.oauth2UserService = oauth2UserService;
     }
 
@@ -76,7 +80,8 @@ public class SecurityConfig {
             security.oauth2Login(oauth -> oauth
                     .authorizationEndpoint(endpoint -> endpoint.baseUri(ApiConstants.API_ROOT + "/oauth2/authorization"))
                     .userInfoEndpoint(endpoint -> endpoint.userService(oauth2UserService))
-                    .successHandler(oauth2LoginSuccessHandler));
+                    .successHandler(oauth2LoginSuccessHandler)
+                    .failureHandler(oauth2LoginFailureHandler));
         }
         return security.build();
     }

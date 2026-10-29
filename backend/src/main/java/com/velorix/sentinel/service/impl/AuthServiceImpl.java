@@ -16,11 +16,13 @@ import com.velorix.sentinel.entity.VerificationToken;
 import com.velorix.sentinel.entity.enums.ActivityType;
 import com.velorix.sentinel.entity.enums.Role;
 import com.velorix.sentinel.entity.enums.TokenPurpose;
+import com.velorix.sentinel.exception.BadRequestException;
 import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UserMapper;
 import com.velorix.sentinel.repository.UserRepository;
+import com.velorix.sentinel.repository.VerificationTokenRepository;
 import com.velorix.sentinel.security.JwtTokenProvider;
 import com.velorix.sentinel.security.CurrentUserProvider;
 import com.velorix.sentinel.service.ActivityLogService;
@@ -33,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +62,13 @@ public class AuthServiceImpl implements AuthService {
     private static final String BEARER = "Bearer";
     private static final String INVALID_CREDENTIALS = "Invalid email or password";
 
+    /**
+     * Canonical set of supported OAuth provider identifiers.
+     * Must match the registration IDs configured in Spring Security's OAuth2 client
+     * and the values stored in the {@code users.oauth_provider} column.
+     */
+    private static final Set<String> SUPPORTED_OAUTH_PROVIDERS = Set.of("google", "github");
+
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -66,6 +76,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
     private final VerificationTokenService verificationTokenService;
+    private final VerificationTokenRepository verificationTokenRepository;
     private final ActivityLogService activityLogService;
     private final EmailService emailService;
     private final AppProperties appProperties;
@@ -79,6 +90,7 @@ public class AuthServiceImpl implements AuthService {
             AuthenticationManager authenticationManager,
             RefreshTokenService refreshTokenService,
             VerificationTokenService verificationTokenService,
+            VerificationTokenRepository verificationTokenRepository,
             ActivityLogService activityLogService,
             EmailService emailService,
             AppProperties appProperties,
@@ -90,6 +102,7 @@ public class AuthServiceImpl implements AuthService {
         this.authenticationManager = authenticationManager;
         this.refreshTokenService = refreshTokenService;
         this.verificationTokenService = verificationTokenService;
+        this.verificationTokenRepository = verificationTokenRepository;
         this.activityLogService = activityLogService;
         this.emailService = emailService;
         this.appProperties = appProperties;
@@ -155,29 +168,157 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse loginWithOAuth(String email, String firstName, String lastName) {
+    public AuthResponse loginWithOAuth(
+            String provider,
+            String providerId,
+            String email,
+            String firstName,
+            String lastName,
+            boolean emailVerified) {
+        if (provider == null || provider.isBlank()) {
+            throw new UnauthorizedException("OAuth provider is required");
+        }
+        if (providerId == null || providerId.isBlank()) {
+            throw new UnauthorizedException("OAuth provider subject ID is required");
+        }
         String normalizedEmail = normalizeEmail(email);
         if (normalizedEmail == null || normalizedEmail.isBlank()) {
             throw new UnauthorizedException("The identity provider did not return an email address");
         }
-
-        User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElseGet(() ->
-                userRepository.save(User.builder()
-                        .firstName(firstName == null || firstName.isBlank() ? "Velorix" : firstName.trim())
-                        .lastName(lastName == null || lastName.isBlank() ? "User" : lastName.trim())
-                        .email(normalizedEmail)
-                        .password(passwordEncoder.encode(UUID.randomUUID().toString()))
-                        .role(Role.USER)
-                        .verified(true)
-                        .active(true)
-                        .build()));
-
-        if (!user.isActive()) {
-            throw new UnauthorizedException("This account has been deactivated");
+        if (!emailVerified) {
+            throw new UnauthorizedException("Email is not verified by " + provider);
         }
-        user.setVerified(true);
-        activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful social sign-in");
-        return issueSession(user, true);
+
+        String cleanProvider = provider.trim().toLowerCase();
+        String cleanProviderId = providerId.trim();
+
+        // 1. Check if an account is already linked to this exact (provider, providerId)
+        Optional<User> existingOAuthUser = userRepository.findByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId);
+        if (existingOAuthUser.isPresent()) {
+            User user = existingOAuthUser.get();
+            if (!user.getEmail().equalsIgnoreCase(normalizedEmail)) {
+                log.warn("OAuth provider identity {}/{} is linked to {} but callback presented email {}",
+                        cleanProvider, cleanProviderId, user.getEmail(), normalizedEmail);
+                throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
+            }
+            if (!user.isActive()) {
+                throw new UnauthorizedException("This account has been deactivated");
+            }
+            activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful " + cleanProvider + " OAuth sign-in");
+            return issueSession(user, true);
+        }
+
+        // 2. Check if a user with this email already exists
+        Optional<User> existingEmailUser = userRepository.findByEmailIgnoreCase(normalizedEmail);
+
+        if (existingEmailUser.isPresent()) {
+            User user = existingEmailUser.get();
+            if (!user.isActive()) {
+                throw new UnauthorizedException("This account has been deactivated");
+            }
+
+            // Scenario 3B: Existing user is ALREADY VERIFIED
+            if (user.isVerified()) {
+                if (user.getOauthProvider() != null) {
+                    throw new ResourceConflictException("This email is already linked to another " + user.getOauthProvider() + " account.");
+                }
+                log.warn("OAuth login for user {} rejected: account already verified with password authentication", user.getId());
+                throw new ResourceConflictException("An account with this email already exists with password authentication. Please sign in with your password to link your social account.");
+            }
+
+            // Scenario 3A: Existing user is UNVERIFIED (Pre-account takeover defense)
+            if (userRepository.existsByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId)) {
+                throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
+            }
+
+            // Revoke all existing sessions and refresh tokens
+            refreshTokenService.revokeAllForUser(user);
+
+            // Invalidate/consume all pending verification and password-reset tokens
+            Instant now = Instant.now();
+            verificationTokenRepository.consumeAllForUser(user.getId(), TokenPurpose.EMAIL_VERIFICATION, now);
+            verificationTokenRepository.consumeAllForUser(user.getId(), TokenPurpose.PASSWORD_RESET, now);
+
+            // Invalidate the old local password with an unmatchable BCrypt hash
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+
+            // Attach OAuth identity and mark verified atomically
+            user.setOauthProvider(cleanProvider);
+            user.setOauthProviderId(cleanProviderId);
+            user.setVerified(true);
+            userRepository.save(user);
+
+            // Send security notification through transactional email service
+            emailService.sendOAuthLinked(user, cleanProvider);
+
+            activityLogService.success(user, ActivityType.PROFILE_UPDATED, "Unverified account transitioned and linked to " + cleanProvider);
+            activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful social sign-in after account linking");
+            return issueSession(user, true);
+        }
+
+        // Scenario 2: Brand new account registering via OAuth
+        if (userRepository.existsByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId)) {
+            throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
+        }
+
+        User newUser = userRepository.save(User.builder()
+                .firstName(firstName == null || firstName.isBlank() ? "Velorix" : firstName.trim())
+                .lastName(lastName == null || lastName.isBlank() ? "User" : lastName.trim())
+                .email(normalizedEmail)
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .role(Role.USER)
+                .verified(true)
+                .active(true)
+                .oauthProvider(cleanProvider)
+                .oauthProviderId(cleanProviderId)
+                .build());
+
+        activityLogService.success(newUser, ActivityType.REGISTRATION, "Account registered via " + cleanProvider + " OAuth");
+        activityLogService.success(newUser, ActivityType.LOGIN_SUCCESS, "Successful social sign-in");
+        return issueSession(newUser, true);
+    }
+
+    @Override
+    @Transactional
+    public void linkOAuth(String provider, String providerId) {
+        User user = currentUserOrNull();
+        if (user == null) {
+            throw new UnauthorizedException("You must be signed in to link an OAuth provider");
+        }
+        linkOAuth(user, provider, providerId);
+    }
+
+    @Override
+    @Transactional
+    public void linkOAuth(User user, String provider, String providerId) {
+        if (user == null) {
+            throw new UnauthorizedException("You must be signed in to link an OAuth provider");
+        }
+        if (provider == null || provider.isBlank() || providerId == null || providerId.isBlank()) {
+            throw new BadRequestException("OAuth provider and provider ID are required");
+        }
+        String cleanProvider = provider.trim().toLowerCase();
+        String cleanProviderId = providerId.trim();
+
+        if (!SUPPORTED_OAUTH_PROVIDERS.contains(cleanProvider)) {
+            throw new BadRequestException(
+                    "Unsupported OAuth provider '" + cleanProvider + "'. Supported providers: google, github");
+        }
+
+        if (user.getOauthProvider() != null && !user.getOauthProvider().isBlank()) {
+            throw new ResourceConflictException("An OAuth provider is already linked to this account");
+        }
+
+        if (userRepository.existsByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId)) {
+            throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
+        }
+
+        user.setOauthProvider(cleanProvider);
+        user.setOauthProviderId(cleanProviderId);
+        userRepository.save(user);
+
+        emailService.sendOAuthLinked(user, cleanProvider);
+        activityLogService.success(user, ActivityType.PROFILE_UPDATED, "Linked " + cleanProvider + " social account");
     }
 
     @Override

@@ -23,7 +23,8 @@ import lombok.ToString;
         name = "users",
         indexes = {
                 @Index(name = "idx_users_email", columnList = "email", unique = true),
-                @Index(name = "idx_users_role", columnList = "role")
+                @Index(name = "idx_users_role", columnList = "role"),
+                @Index(name = "uk_users_oauth_provider_id", columnList = "oauth_provider, oauth_provider_id", unique = true)
         })
 @Getter
 @Setter
@@ -62,6 +63,16 @@ public class User extends BaseEntity {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "oauth_provider", length = 32)
+    private String oauthProvider;
+
+    @Column(name = "oauth_provider_id", length = 255)
+    private String oauthProviderId;
+
+    public boolean isOAuthUser() {
+        return oauthProvider != null && !oauthProvider.isBlank();
+    }
 
     public String fullName() {
         return firstName + " " + lastName;

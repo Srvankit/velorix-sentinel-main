@@ -212,6 +212,37 @@ class TransactionalEmailServiceTest {
     }
 
     @Test
+    @DisplayName("OAuth linked email creates security alert multipart MIME message")
+    void sendOAuthLinkedCreatesSecurityAlert() throws Exception {
+        User user = testUser("linus@velorix.io", "Linus", "Torvalds");
+
+        emailService.sendOAuthLinked(user, "github");
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+
+        MimeMessage message = captor.getValue();
+        message.saveChanges();
+
+        assertThat(message.getSubject()).isEqualTo("Security Alert: Your Velorix Sentinel account was linked to github");
+        assertThat(message.getAllRecipients()).containsExactly(new InternetAddress("linus@velorix.io"));
+
+        String plainText = extractPartContent(message, "text/plain");
+        String htmlText = extractPartContent(message, "text/html");
+
+        assertThat(plainText)
+                .isNotNull()
+                .contains("Hello Linus,")
+                .contains("github")
+                .contains("linked to your Velorix Sentinel account");
+
+        assertThat(htmlText)
+                .isNotNull()
+                .contains("Security Alert: Social Account Linked")
+                .contains("github");
+    }
+
+    @Test
     @DisplayName("Logs use opaque user ID when available and redact sensitive URLs and cleartext emails")
     void logsOpaqueUserIdAndRedactsSensitiveInformation() {
         String secretToken = "RECOGNIZABLE_SECRET_TOKEN_XYZ_123456789";

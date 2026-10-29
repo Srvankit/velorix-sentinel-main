@@ -9,6 +9,7 @@ import com.velorix.sentinel.dto.auth.ResendVerificationRequest;
 import com.velorix.sentinel.dto.auth.ResetPasswordRequest;
 import com.velorix.sentinel.dto.auth.UserResponse;
 import com.velorix.sentinel.dto.auth.VerifyEmailRequest;
+import com.velorix.sentinel.entity.User;
 
 /**
  * Contract for the authentication module: credential verification, token issuance,
@@ -20,7 +21,17 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request);
 
-    AuthResponse loginWithOAuth(String email, String firstName, String lastName);
+    AuthResponse loginWithOAuth(
+            String provider,
+            String providerId,
+            String email,
+            String firstName,
+            String lastName,
+            boolean emailVerified);
+
+    void linkOAuth(String provider, String providerId);
+
+    void linkOAuth(User user, String provider, String providerId);
 
     AuthResponse refresh(RefreshTokenRequest request);
 

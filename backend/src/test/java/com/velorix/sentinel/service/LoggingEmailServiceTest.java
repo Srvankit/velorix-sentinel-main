@@ -119,6 +119,26 @@ class LoggingEmailServiceTest {
                 .doesNotContain("grace.hopper@velorix.io");
     }
 
+    @Test
+    @DisplayName("OAuth linked email logs opaque user ID and provider name without cleartext email")
+    void oAuthLinkedLogsOpaqueUserIdAndProvider() {
+        User user = testUser("linus@velorix.io", "Linus", "Torvalds");
+
+        emailService.sendOAuthLinked(user, "github");
+
+        List<ILoggingEvent> events = listAppender.list;
+        assertThat(events).hasSize(1);
+
+        ILoggingEvent event = events.get(0);
+        assertThat(event.getLevel()).isEqualTo(Level.INFO);
+
+        String formattedMessage = event.getFormattedMessage();
+        assertThat(formattedMessage)
+                .contains("[email-fallback]")
+                .contains("OAuth provider linked notification event for user " + user.getId())
+                .doesNotContain("linus@velorix.io");
+    }
+
     private User testUser(String email, String firstName, String lastName) {
         return User.builder()
                 .id(UUID.randomUUID())
