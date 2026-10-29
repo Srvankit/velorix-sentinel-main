@@ -67,6 +67,7 @@ spring:
           writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
 
 server:
+  forward-headers-strategy: framework
   # Render injects PORT when available; Docker defaults to the exposed web port.
   # Local development remains on 8081 unless PORT or SERVER_PORT is overridden.
   port: ${PORT:${SERVER_PORT:8081}}

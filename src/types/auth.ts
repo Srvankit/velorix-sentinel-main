@@ -25,7 +25,7 @@ export interface AuthTokens {
 }
 
 export interface AuthSession extends AuthTokens {
-  user: AuthUser;
+  user: AuthUser | null;
 }
 
 export interface LoginRequest {

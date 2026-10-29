@@ -1,3 +1,6 @@
+server:
+  forward-headers-strategy: framework
+
 spring:
   datasource:
     url: jdbc:h2:mem:sentinel;MODE=PostgreSQL;DB_CLOSE_DELAY=-1

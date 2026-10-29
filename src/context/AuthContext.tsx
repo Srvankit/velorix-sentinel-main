@@ -130,10 +130,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeOAuthLogin = useCallback(
     async (tokens: Omit<AuthSession, "user">) => {
-      const user = await authService.currentUser();
-      persistSession({ ...tokens, user });
+      // Persist tokens first so Axios interceptor has access to Authorization header
+      persistSession({ ...tokens, user: null });
+      try {
+        const user = await authService.currentUser();
+        persistSession({ ...tokens, user });
+      } catch (error) {
+        clearSession();
+        throw error;
+      }
     },
-    [persistSession],
+    [persistSession, clearSession],
   );
 
   const value = useMemo<AuthContextValue>(
