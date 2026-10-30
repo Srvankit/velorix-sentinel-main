@@ -6,6 +6,7 @@ import com.velorix.sentinel.dto.auth.AuthResponse;
 import com.velorix.sentinel.dto.auth.ForgotPasswordRequest;
 import com.velorix.sentinel.dto.auth.LinkOAuthRequest;
 import com.velorix.sentinel.dto.auth.LoginRequest;
+import com.velorix.sentinel.dto.auth.OAuthExchangeRequest;
 import com.velorix.sentinel.dto.auth.RefreshTokenRequest;
 import com.velorix.sentinel.dto.auth.RegisterRequest;
 import com.velorix.sentinel.dto.auth.ResendVerificationRequest;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * email verification and password recovery.
  */
 @RestController
-@RequestMapping(ApiConstants.AUTH_BASE)
+@RequestMapping({ApiConstants.AUTH_BASE, ApiConstants.API_V1 + "/auth"})
 @Tag(name = "Authentication", description = "Registration, login, token lifecycle and password recovery")
 @SecurityRequirements
 public class AuthController {
@@ -70,6 +71,19 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         log.debug("Login requested");
         return ResponseEntity.ok(ApiResponse.success(authService.login(request), "Authenticated successfully"));
+    }
+
+    @PostMapping("/oauth/exchange")
+    @Operation(summary = "Exchange a single-use OAuth authorization code for session tokens")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Authenticated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired exchange code")
+    })
+    public ResponseEntity<ApiResponse<AuthResponse>> exchangeOAuthCode(@Valid @RequestBody OAuthExchangeRequest request) {
+        log.debug("OAuth code exchange requested");
+        AuthResponse response = authService.exchangeOAuthCode(request.code());
+        return ResponseEntity.ok(ApiResponse.success(response, "Authenticated successfully"));
     }
 
     @PostMapping("/refresh")

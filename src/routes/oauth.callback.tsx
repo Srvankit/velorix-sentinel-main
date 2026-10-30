@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { Spinner } from "@/components/common";
 import { useAuth } from "@/hooks/useAuth";
-import type { AuthSession } from "@/types/auth";
+import { authService } from "@/services/authService";
 import { ROUTES } from "@/utils/constants";
 
 export const Route = createFileRoute("/oauth/callback")({
@@ -18,41 +18,39 @@ function OAuthCallbackPage() {
   useEffect(() => {
     if (hasProcessedRef.current) return;
 
-    const hash = window.location.hash.slice(1);
-    if (!hash) {
+    // Secure one-time authorization code exchange (Task 3.5)
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
+    const error = searchParams.get("error");
+
+    if (error) {
       hasProcessedRef.current = true;
+      window.history.replaceState(null, "", window.location.pathname);
       void navigate({ to: ROUTES.login, replace: true });
       return;
     }
 
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("accessToken");
-    const refreshToken = params.get("refreshToken");
-    const accessTokenExpiresAt = params.get("accessTokenExpiresAt") ?? "";
-    const refreshTokenExpiresAt = params.get("refreshTokenExpiresAt") ?? "";
-
-    if (!accessToken || !refreshToken) {
+    if (code) {
       hasProcessedRef.current = true;
-      void navigate({ to: ROUTES.login, replace: true });
+      // Strip authorization code from the browser URL bar and history immediately
+      window.history.replaceState(null, "", window.location.pathname);
+
+      void authService
+        .exchangeOAuthCode({ code })
+        .then((session) => completeOAuthLogin(session))
+        .then(() => navigate({ to: ROUTES.dashboard, replace: true }))
+        .catch(() => {
+          void navigate({ to: ROUTES.login, replace: true });
+        });
       return;
     }
 
+    // Code is missing (legacy token fragments are strictly rejected)
     hasProcessedRef.current = true;
-    // Strip sensitive tokens from the browser URL bar and history immediately
-    window.history.replaceState(null, "", window.location.pathname);
-
-    const session: Omit<AuthSession, "user"> = {
-      accessToken,
-      refreshToken,
-      tokenType: "Bearer",
-      accessTokenExpiresAt,
-      refreshTokenExpiresAt,
-    };
-    void completeOAuthLogin(session)
-      .then(() => navigate({ to: ROUTES.dashboard, replace: true }))
-      .catch(() => {
-        void navigate({ to: ROUTES.login, replace: true });
-      });
+    if (window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    void navigate({ to: ROUTES.login, replace: true });
   }, [completeOAuthLogin, navigate]);
 
   return (

@@ -10,6 +10,7 @@ import com.velorix.sentinel.dto.auth.ResendVerificationRequest;
 import com.velorix.sentinel.dto.auth.ResetPasswordRequest;
 import com.velorix.sentinel.dto.auth.UserResponse;
 import com.velorix.sentinel.dto.auth.VerifyEmailRequest;
+import com.velorix.sentinel.entity.OAuthExchangeCode;
 import com.velorix.sentinel.entity.RefreshToken;
 import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.VerificationToken;
@@ -21,6 +22,7 @@ import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UserMapper;
+import com.velorix.sentinel.repository.OAuthExchangeCodeRepository;
 import com.velorix.sentinel.repository.UserRepository;
 import com.velorix.sentinel.repository.VerificationTokenRepository;
 import com.velorix.sentinel.security.JwtTokenProvider;
@@ -30,6 +32,7 @@ import com.velorix.sentinel.service.AuthService;
 import com.velorix.sentinel.service.EmailService;
 import com.velorix.sentinel.service.RefreshTokenService;
 import com.velorix.sentinel.service.VerificationTokenService;
+import com.velorix.sentinel.util.TokenUtils;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -77,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final VerificationTokenService verificationTokenService;
     private final VerificationTokenRepository verificationTokenRepository;
+    private final OAuthExchangeCodeRepository oauthExchangeCodeRepository;
     private final ActivityLogService activityLogService;
     private final EmailService emailService;
     private final AppProperties appProperties;
@@ -91,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
             RefreshTokenService refreshTokenService,
             VerificationTokenService verificationTokenService,
             VerificationTokenRepository verificationTokenRepository,
+            OAuthExchangeCodeRepository oauthExchangeCodeRepository,
             ActivityLogService activityLogService,
             EmailService emailService,
             AppProperties appProperties,
@@ -103,6 +108,7 @@ public class AuthServiceImpl implements AuthService {
         this.refreshTokenService = refreshTokenService;
         this.verificationTokenService = verificationTokenService;
         this.verificationTokenRepository = verificationTokenRepository;
+        this.oauthExchangeCodeRepository = oauthExchangeCodeRepository;
         this.activityLogService = activityLogService;
         this.emailService = emailService;
         this.appProperties = appProperties;
@@ -175,6 +181,19 @@ public class AuthServiceImpl implements AuthService {
             String firstName,
             String lastName,
             boolean emailVerified) {
+        User user = authenticateOAuthUser(provider, providerId, email, firstName, lastName, emailVerified);
+        return issueSession(user, true);
+    }
+
+    @Override
+    @Transactional
+    public User authenticateOAuthUser(
+            String provider,
+            String providerId,
+            String email,
+            String firstName,
+            String lastName,
+            boolean emailVerified) {
         if (provider == null || provider.isBlank()) {
             throw new UnauthorizedException("OAuth provider is required");
         }
@@ -205,7 +224,7 @@ public class AuthServiceImpl implements AuthService {
                 throw new UnauthorizedException("This account has been deactivated");
             }
             activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful " + cleanProvider + " OAuth sign-in");
-            return issueSession(user, true);
+            return user;
         }
 
         // 2. Check if a user with this email already exists
@@ -253,7 +272,7 @@ public class AuthServiceImpl implements AuthService {
 
             activityLogService.success(user, ActivityType.PROFILE_UPDATED, "Unverified account transitioned and linked to " + cleanProvider);
             activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Successful social sign-in after account linking");
-            return issueSession(user, true);
+            return user;
         }
 
         // Scenario 2: Brand new account registering via OAuth
@@ -275,7 +294,53 @@ public class AuthServiceImpl implements AuthService {
 
         activityLogService.success(newUser, ActivityType.REGISTRATION, "Account registered via " + cleanProvider + " OAuth");
         activityLogService.success(newUser, ActivityType.LOGIN_SUCCESS, "Successful social sign-in");
-        return issueSession(newUser, true);
+        return newUser;
+    }
+
+    @Override
+    @Transactional
+    public String createOAuthExchangeCode(User user) {
+        if (user == null || !user.isActive()) {
+            throw new UnauthorizedException("User account is inactive or not found");
+        }
+        String rawCode = TokenUtils.randomToken();
+        String codeHash = TokenUtils.sha256Hex(rawCode);
+        Instant now = Instant.now();
+        OAuthExchangeCode exchangeCode = OAuthExchangeCode.builder()
+                .codeHash(codeHash)
+                .user(user)
+                .expiresAt(now.plusSeconds(60))
+                .build();
+        oauthExchangeCodeRepository.save(exchangeCode);
+        log.debug("Created OAuth exchange code for user {}", user.getId());
+        return rawCode;
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse exchangeOAuthCode(String rawCode) {
+        if (rawCode == null || rawCode.isBlank()) {
+            throw new UnauthorizedException("OAuth exchange code is required");
+        }
+        String codeHash = TokenUtils.sha256Hex(rawCode.trim());
+        OAuthExchangeCode exchangeCode = oauthExchangeCodeRepository.findByCodeHashWithLock(codeHash)
+                .orElseThrow(() -> new UnauthorizedException("Invalid or expired OAuth exchange code"));
+
+        Instant now = Instant.now();
+        if (!exchangeCode.isUsable(now)) {
+            throw new UnauthorizedException("OAuth exchange code is invalid, expired, or already used");
+        }
+
+        exchangeCode.setConsumedAt(now);
+        oauthExchangeCodeRepository.save(exchangeCode);
+
+        User user = exchangeCode.getUser();
+        if (!user.isActive()) {
+            throw new UnauthorizedException("This account has been deactivated");
+        }
+
+        activityLogService.success(user, ActivityType.LOGIN_SUCCESS, "Exchanged one-time OAuth code");
+        return issueSession(user, true);
     }
 
     @Override

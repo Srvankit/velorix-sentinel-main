@@ -29,6 +29,18 @@ public interface AuthService {
             String lastName,
             boolean emailVerified);
 
+    User authenticateOAuthUser(
+            String provider,
+            String providerId,
+            String email,
+            String firstName,
+            String lastName,
+            boolean emailVerified);
+
+    String createOAuthExchangeCode(User user);
+
+    AuthResponse exchangeOAuthCode(String code);
+
     void linkOAuth(String provider, String providerId);
 
     void linkOAuth(User user, String provider, String providerId);

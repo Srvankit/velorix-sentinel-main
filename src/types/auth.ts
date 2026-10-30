@@ -62,3 +62,7 @@ export interface VerifyEmailRequest {
 export interface ResendVerificationRequest {
   email: string;
 }
+
+export interface OAuthExchangeRequest {
+  code: string;
+}

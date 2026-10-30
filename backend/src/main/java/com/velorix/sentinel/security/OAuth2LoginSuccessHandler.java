@@ -1,7 +1,7 @@
 package com.velorix.sentinel.security;
 
 import com.velorix.sentinel.config.properties.AppProperties;
-import com.velorix.sentinel.dto.auth.AuthResponse;
+import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.service.AuthService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,14 +78,10 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         }
 
         try {
-            AuthResponse session = authService.getObject().loginWithOAuth(
+            User user = authService.getObject().authenticateOAuthUser(
                     provider, providerId, email, firstName, lastName, emailVerified);
-            String target = appProperties.frontendBaseUrl() + "/oauth/callback"
-                    + "#accessToken=" + encode(session.accessToken())
-                    + "&refreshToken=" + encode(session.refreshToken())
-                    + "&tokenType=" + encode(session.tokenType())
-                    + "&accessTokenExpiresAt=" + encode(session.accessTokenExpiresAt().toString())
-                    + "&refreshTokenExpiresAt=" + encode(session.refreshTokenExpiresAt().toString());
+            String code = authService.getObject().createOAuthExchangeCode(user);
+            String target = appProperties.frontendBaseUrl() + "/oauth/callback?code=" + encode(code);
             clearAuthenticationAttributes(request);
             getRedirectStrategy().sendRedirect(request, response, target);
         } catch (Exception ex) {

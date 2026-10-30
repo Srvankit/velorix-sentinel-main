@@ -10,8 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.velorix.sentinel.config.properties.AppProperties;
-import com.velorix.sentinel.dto.auth.AuthResponse;
-import com.velorix.sentinel.dto.auth.UserResponse;
+import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.enums.Role;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.service.AuthService;
@@ -55,8 +54,8 @@ class OAuth2LoginHandlerTest {
     }
 
     @Test
-    @DisplayName("Success handler redirects to /oauth/callback with tokens in URL fragment on valid verified authentication")
-    void successHandlerRedirectsWithTokens() throws Exception {
+    @DisplayName("Success handler redirects to /oauth/callback with one-time exchange code on valid verified authentication")
+    void successHandlerRedirectsWithExchangeCode() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -75,24 +74,29 @@ class OAuth2LoginHandlerTest {
                 principal.getAuthorities(),
                 "google");
 
-        AuthResponse authResponse = new AuthResponse(
-                "test-access-token",
-                "test-refresh-token",
-                "Bearer",
-                Instant.now().plusSeconds(900),
-                Instant.now().plusSeconds(604800),
-                new UserResponse(UUID.randomUUID(), "Ada", "Lovelace", "Ada Lovelace", "user@velorix.io", Role.USER, true, true, Instant.now(), Instant.now()));
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("user@velorix.io")
+                .firstName("Ada")
+                .lastName("Lovelace")
+                .role(Role.USER)
+                .verified(true)
+                .active(true)
+                .build();
 
-        when(authService.loginWithOAuth(eq("google"), eq("google-sub-789"), eq("user@velorix.io"), eq("Ada"), eq("Lovelace"), eq(true)))
-                .thenReturn(authResponse);
+        when(authService.authenticateOAuthUser(eq("google"), eq("google-sub-789"), eq("user@velorix.io"), eq("Ada"), eq("Lovelace"), eq(true)))
+                .thenReturn(user);
+        when(authService.createOAuthExchangeCode(eq(user)))
+                .thenReturn("sec_code_xyz123");
 
         successHandler.onAuthenticationSuccess(request, response, auth);
 
         String redirectUrl = response.getRedirectedUrl();
         assertThat(redirectUrl).isNotNull();
-        assertThat(redirectUrl).startsWith("https://sentinel.velorix.io/oauth/callback#");
-        assertThat(redirectUrl).contains("accessToken=test-access-token");
-        assertThat(redirectUrl).contains("refreshToken=test-refresh-token");
+        assertThat(redirectUrl).isEqualTo("https://sentinel.velorix.io/oauth/callback?code=sec_code_xyz123");
+        assertThat(redirectUrl).doesNotContain("accessToken");
+        assertThat(redirectUrl).doesNotContain("refreshToken");
+        assertThat(redirectUrl).doesNotContain("#");
     }
 
     @Test
@@ -141,7 +145,7 @@ class OAuth2LoginHandlerTest {
                 principal.getAuthorities(),
                 "google");
 
-        when(authService.loginWithOAuth(any(), any(), any(), any(), any(), anyBoolean()))
+        when(authService.authenticateOAuthUser(any(), any(), any(), any(), any(), anyBoolean()))
                 .thenThrow(new ResourceConflictException("An account with this email already exists with password authentication."));
 
         successHandler.onAuthenticationSuccess(request, response, auth);

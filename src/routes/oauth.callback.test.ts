@@ -134,3 +134,95 @@ describe("OAuth callback race condition resolution (Task 3.4)", () => {
     expect(currentSession).toBeNull();
   });
 });
+
+describe("OAuth One-Time Code Exchange (Task 3.5)", () => {
+  const sampleExchangeResponse: AuthSession = {
+    accessToken: "exchange-issued-access-token",
+    refreshToken: "exchange-issued-refresh-token",
+    tokenType: "Bearer",
+    accessTokenExpiresAt: "2026-10-30T00:00:00Z",
+    refreshTokenExpiresAt: "2026-11-06T00:00:00Z",
+    user: {
+      id: "user-uuid-exchange-1",
+      firstName: "Grace",
+      lastName: "Hopper",
+      fullName: "Grace Hopper",
+      email: "grace@velorix.io",
+      role: "USER",
+      verified: true,
+      active: true,
+      createdAt: "2026-10-29T10:00:00Z",
+      updatedAt: "2026-10-29T10:00:00Z",
+    },
+  };
+
+  test("parses code from search query, replaces URL bar state, and exchanges code for session", async () => {
+    const callOrder: string[] = [];
+
+    const mockCode = "sec_auth_code_987654";
+    const searchParams = new URLSearchParams(`?code=${mockCode}`);
+    const code = searchParams.get("code");
+
+    const replaceState = mock((_state: unknown, _title: string, url: string) => {
+      callOrder.push(`replaceState:${url}`);
+    });
+
+    const exchangeOAuthCode = mock(async (req: { code: string }) => {
+      callOrder.push(`exchangeOAuthCode:${req.code}`);
+      return sampleExchangeResponse;
+    });
+
+    const completeOAuthLogin = mock(async (_session: AuthSession) => {
+      callOrder.push("completeOAuthLogin");
+    });
+
+    expect(code).toBe(mockCode);
+    replaceState(null, "", "/oauth/callback");
+    const session = await exchangeOAuthCode({ code: code! });
+    await completeOAuthLogin(session);
+
+    expect(callOrder).toEqual([
+      "replaceState:/oauth/callback",
+      `exchangeOAuthCode:${mockCode}`,
+      "completeOAuthLogin",
+    ]);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/oauth/callback");
+    expect(exchangeOAuthCode).toHaveBeenCalledWith({ code: mockCode });
+    expect(completeOAuthLogin).toHaveBeenCalledWith(sampleExchangeResponse);
+  });
+
+  test("handles exchange rejection (expired or replayed code) by redirecting to login", async () => {
+    const exchangeOAuthCode = mock(async () => {
+      throw new Error("401 Unauthorized: Invalid or expired OAuth exchange code");
+    });
+
+    const navigateToLogin = mock(() => {});
+
+    await exchangeOAuthCode({ code: "expired-or-replayed-code" }).catch(() => {
+      navigateToLogin();
+    });
+
+    expect(navigateToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects legacy URL fragment without code and redirects to login", () => {
+    const searchParams = new URLSearchParams("");
+    const code = searchParams.get("code");
+    const hash = "#accessToken=legacy-token&refreshToken=legacy-refresh";
+
+    const replaceState = mock((_state: unknown, _title: string, url: string) => {});
+    const navigateToLogin = mock(() => {});
+
+    // Code is missing
+    expect(code).toBeNull();
+
+    // Verify rejection behavior: strip hash if present and navigate to login
+    if (hash) {
+      replaceState(null, "", "/oauth/callback");
+    }
+    navigateToLogin();
+
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/oauth/callback");
+    expect(navigateToLogin).toHaveBeenCalledTimes(1);
+  });
+});

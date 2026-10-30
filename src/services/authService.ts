@@ -4,6 +4,7 @@ import type {
   AuthUser,
   ForgotPasswordRequest,
   LoginRequest,
+  OAuthExchangeRequest,
   RefreshTokenRequest,
   RegisterRequest,
   ResendVerificationRequest,
@@ -20,6 +21,7 @@ import type {
 export const AUTH_ENDPOINTS = {
   register: "/auth/register",
   login: "/auth/login",
+  oauthExchange: "/auth/oauth/exchange",
   forgotPassword: "/auth/forgot-password",
   resetPassword: "/auth/reset-password",
   verifyEmail: "/auth/verify-email",
@@ -37,6 +39,12 @@ export const authService = {
   /** POST /api/auth/login */
   login: (payload: LoginRequest) =>
     api.post<AuthSession, LoginRequest>(AUTH_ENDPOINTS.login, payload),
+
+  /** POST /api/auth/oauth/exchange — exchanges a single-use OAuth authorization code for session tokens. */
+  exchangeOAuthCode: (payload: OAuthExchangeRequest) =>
+    api.post<AuthSession, OAuthExchangeRequest>(AUTH_ENDPOINTS.oauthExchange, payload, {
+      skipAuthRefresh: true,
+    }),
 
   /** POST /api/auth/forgot-password */
   forgotPassword: (payload: ForgotPasswordRequest) =>
