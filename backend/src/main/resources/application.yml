@@ -113,6 +113,9 @@ velorix:
       refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:P7D}
       token-prefix: "Bearer "
       header-name: Authorization
+    # Comma-separated list of trusted reverse proxy IP addresses or CIDR blocks (e.g. "127.0.0.1,::1,10.0.0.0/8").
+    # Default is empty (fail-closed: direct client requests cannot spoof their IP using forwarded headers).
+    trusted-proxies: ${TRUSTED_PROXIES:}
   # Configure OAuth clients through SPRING_SECURITY_OAUTH2_CLIENT_* environment variables.
   # Redirect URI for both providers: https://velorix-sentinel-backend.onrender.com/login/oauth2/code/{registrationId}
   cors:

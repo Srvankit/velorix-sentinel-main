@@ -8,6 +8,7 @@ import com.velorix.sentinel.security.JwtAuthenticationFilter;
 import com.velorix.sentinel.security.OAuth2LoginSuccessHandler;
 import com.velorix.sentinel.security.OAuth2LoginFailureHandler;
 import com.velorix.sentinel.security.GitHubOAuth2UserService;
+import com.velorix.sentinel.security.TrustedProxyManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -43,6 +44,7 @@ public class SecurityConfig {
     private final OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oauth2LoginFailureHandler;
     private final GitHubOAuth2UserService oauth2UserService;
+    private final TrustedProxyManager trustedProxyManager;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -51,7 +53,8 @@ public class SecurityConfig {
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             OAuth2LoginSuccessHandler oauth2LoginSuccessHandler,
             OAuth2LoginFailureHandler oauth2LoginFailureHandler,
-            GitHubOAuth2UserService oauth2UserService) {
+            GitHubOAuth2UserService oauth2UserService,
+            TrustedProxyManager trustedProxyManager) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
@@ -59,6 +62,7 @@ public class SecurityConfig {
         this.oauth2LoginSuccessHandler = oauth2LoginSuccessHandler;
         this.oauth2LoginFailureHandler = oauth2LoginFailureHandler;
         this.oauth2UserService = oauth2UserService;
+        this.trustedProxyManager = trustedProxyManager;
     }
 
     @Bean
