@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.experimental.SuperBuilder;
@@ -26,7 +27,9 @@ import lombok.ToString;
         indexes = {
                 @Index(name = "idx_refresh_tokens_token_hash", columnList = "token_hash", unique = true),
                 @Index(name = "idx_refresh_tokens_user", columnList = "user_id"),
-                @Index(name = "idx_refresh_tokens_expires_at", columnList = "expires_at")
+                @Index(name = "idx_refresh_tokens_expires_at", columnList = "expires_at"),
+                @Index(name = "idx_refresh_tokens_family_id", columnList = "family_id"),
+                @Index(name = "idx_refresh_tokens_previous_hash", columnList = "previous_token_hash")
         })
 @Getter
 @Setter
@@ -47,6 +50,16 @@ public class RefreshToken extends BaseEntity {
     @ToString.Exclude
     @Column(name = "token_hash", nullable = false, unique = true, length = 128)
     private String tokenHash;
+
+    /** Unique identifier for the token family (session chain). */
+    @Builder.Default
+    @Column(name = "family_id", nullable = false)
+    private UUID familyId = UUID.randomUUID();
+
+    /** SHA-256 hash of the parent token that this token replaced upon rotation. */
+    @ToString.Exclude
+    @Column(name = "previous_token_hash", length = 128)
+    private String previousTokenHash;
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;

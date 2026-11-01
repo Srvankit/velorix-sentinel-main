@@ -3,6 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AuthContext, type AuthContextValue } from "@/context/auth-context";
 import { authService, configureApiClient } from "@/services";
 import type { AuthSession, LoginRequest, RegisterRequest, UserRole } from "@/types/auth";
+import {
+  withCrossTabLock,
+  CrossTabLockTimeoutError,
+  CrossTabLockUnavailableError,
+} from "@/utils/crossTabLock";
 import { STORAGE_KEYS, storage } from "@/utils/storage";
 
 /**
@@ -56,6 +61,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, [isInitializing, session, persistSession, clearSession]);
 
+  // Synchronize session changes from other tabs in real-time
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEYS.session) {
+        const next = storage.get<AuthSession>(STORAGE_KEYS.session);
+        sessionRef.current = next;
+        setSession(next);
+        if (!next) {
+          setSessionExpired(true);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   // Wire the HTTP client once; it reads the live session through the ref.
   useEffect(() => {
     configureApiClient({
@@ -65,13 +89,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession();
       },
       refreshSession: async () => {
-        const current = sessionRef.current;
-        if (!current?.refreshToken) return null;
+        const triggeringToken = sessionRef.current?.refreshToken;
+        if (!triggeringToken) return null;
+
         try {
-          const next = await authService.refresh({ refreshToken: current.refreshToken });
-          persistSession(next);
-          return next.accessToken;
-        } catch {
+          return await withCrossTabLock("velorix_refresh_lock", async () => {
+            // 1. Re-read the latest session from shared storage AFTER acquiring the lock
+            const latestSession = storage.get<AuthSession>(STORAGE_KEYS.session);
+
+            // 2. If storage was cleared (e.g., logged out by another tab), abort
+            if (!latestSession?.refreshToken) {
+              return null;
+            }
+
+            // 3. Compare latest token in storage against the token that triggered the refresh
+            if (latestSession.refreshToken !== triggeringToken) {
+              // Another tab has ALREADY rotated this token!
+              // Use the latest session instead of submitting the stale token
+              sessionRef.current = latestSession;
+              setSession(latestSession);
+              setSessionExpired(false);
+              return latestSession.accessToken;
+            }
+
+            // 4. Token has NOT changed -> this tab is the designated rotator
+            const next = await authService.refresh({ refreshToken: triggeringToken });
+
+            // 5. Persist the newly issued token before releasing the lock
+            persistSession(next);
+            return next.accessToken;
+          });
+        } catch (error) {
+          if (
+            error instanceof CrossTabLockUnavailableError ||
+            error instanceof CrossTabLockTimeoutError
+          ) {
+            // Fail-closed without clearing session: preserve existing authentication state
+            throw error;
+          }
           // Auto logout: the refresh token is expired or revoked.
           return null;
         }
@@ -110,11 +165,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearSession]);
 
   const refreshSession = useCallback(async () => {
-    const current = sessionRef.current;
-    if (!current?.refreshToken) return;
+    const triggeringToken = sessionRef.current?.refreshToken;
+    if (!triggeringToken) return;
+
     try {
-      persistSession(await authService.refresh({ refreshToken: current.refreshToken }));
+      await withCrossTabLock("velorix_refresh_lock", async () => {
+        const latestSession = storage.get<AuthSession>(STORAGE_KEYS.session);
+        if (!latestSession?.refreshToken) {
+          throw new Error("No active session to refresh");
+        }
+
+        if (latestSession.refreshToken !== triggeringToken) {
+          sessionRef.current = latestSession;
+          setSession(latestSession);
+          setSessionExpired(false);
+          return;
+        }
+
+        const next = await authService.refresh({ refreshToken: triggeringToken });
+        persistSession(next);
+      });
     } catch (error) {
+      if (
+        error instanceof CrossTabLockUnavailableError ||
+        error instanceof CrossTabLockTimeoutError
+      ) {
+        // Fail-closed without clearing session: preserve existing authentication state
+        throw error;
+      }
       setSessionExpired(true);
       clearSession();
       throw error;

@@ -35,7 +35,7 @@ class FlywayPostgresMigrationVerificationTest {
     }
 
     @Test
-    @DisplayName("Verify V1 through V11 Flyway migrations against real PostgreSQL 16")
+    @DisplayName("Verify V1 through V12 Flyway migrations against real PostgreSQL 16")
     void testFlywayMigrationsAgainstPostgreSql() throws Exception {
         // Clean schema if existing
         Flyway cleanFlyway = Flyway.configure()
@@ -44,7 +44,7 @@ class FlywayPostgresMigrationVerificationTest {
                 .load();
         cleanFlyway.clean();
 
-        // 1. Run migrations V1 through V11 in an environment without Supabase roles
+        // 1. Run migrations V1 through V12 in an environment without Supabase roles
         Flyway flyway = Flyway.configure()
                 .dataSource(JDBC_URL, USER, PASS)
                 .locations("classpath:db/migration")
@@ -52,12 +52,12 @@ class FlywayPostgresMigrationVerificationTest {
 
         MigrateResult result = flyway.migrate();
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isGreaterThanOrEqualTo(11);
+        assertThat(result.migrationsExecuted).isGreaterThanOrEqualTo(12);
 
         try (Connection conn = DriverManager.getConnection(JDBC_URL, USER, PASS);
              Statement stmt = conn.createStatement()) {
 
-            // 2. Verify table columns and types for oauth_exchange_codes
+            // 2. Verify table columns and types for oauth_exchange_codes (V11)
             Map<String, String> columns = new HashMap<>();
             try (ResultSet rs = stmt.executeQuery(
                     "SELECT column_name, data_type, is_nullable " +
@@ -85,7 +85,7 @@ class FlywayPostgresMigrationVerificationTest {
                 assertThat(rlsEnabled).as("Row level security must be enabled").isTrue();
             }
 
-            // 4. Verify indexes
+            // 4. Verify indexes on oauth_exchange_codes
             Map<String, Boolean> indexes = new HashMap<>();
             try (ResultSet rs = stmt.executeQuery(
                     "SELECT indexname, indisunique " +
@@ -103,7 +103,40 @@ class FlywayPostgresMigrationVerificationTest {
             assertThat(indexes).containsKey("idx_oauth_exchange_codes_user");
             assertThat(indexes).containsKey("idx_oauth_exchange_codes_expires");
 
-            // 5. Test compatibility when Supabase roles 'anon' and 'authenticated' DO exist
+            // 5. Verify refresh_tokens table columns and types added in V12
+            Map<String, String> refreshCols = new HashMap<>();
+            Map<String, String> refreshNullable = new HashMap<>();
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT column_name, data_type, is_nullable " +
+                    "FROM information_schema.columns " +
+                    "WHERE table_name = 'refresh_tokens'")) {
+                while (rs.next()) {
+                    refreshCols.put(rs.getString("column_name"), rs.getString("data_type"));
+                    refreshNullable.put(rs.getString("column_name"), rs.getString("is_nullable"));
+                }
+            }
+
+            assertThat(refreshCols).containsEntry("family_id", "uuid");
+            assertThat(refreshNullable).containsEntry("family_id", "NO");
+            assertThat(refreshCols).containsEntry("previous_token_hash", "character varying");
+
+            // 6. Verify indexes on refresh_tokens added in V12
+            Map<String, Boolean> refreshIndexes = new HashMap<>();
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT indexname, indisunique " +
+                    "FROM pg_indexes " +
+                    "JOIN pg_class c ON c.relname = pg_indexes.indexname " +
+                    "JOIN pg_index i ON i.indexrelid = c.oid " +
+                    "WHERE tablename = 'refresh_tokens'")) {
+                while (rs.next()) {
+                    refreshIndexes.put(rs.getString("indexname"), rs.getBoolean("indisunique"));
+                }
+            }
+
+            assertThat(refreshIndexes).containsKey("idx_refresh_tokens_family_id");
+            assertThat(refreshIndexes).containsKey("idx_refresh_tokens_previous_hash");
+
+            // 7. Test compatibility when Supabase roles 'anon' and 'authenticated' DO exist
             stmt.execute("DO $$ BEGIN " +
                          "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF; " +
                          "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated; END IF; " +

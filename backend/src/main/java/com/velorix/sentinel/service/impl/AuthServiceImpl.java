@@ -20,6 +20,7 @@ import com.velorix.sentinel.entity.enums.TokenPurpose;
 import com.velorix.sentinel.exception.BadRequestException;
 import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
+import com.velorix.sentinel.exception.TokenException;
 import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UserMapper;
 import com.velorix.sentinel.repository.OAuthExchangeCodeRepository;
@@ -387,18 +388,28 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
-        RefreshToken stored = refreshTokenService.requireUsable(request.refreshToken());
-        User user = stored.getUser();
+        if (request == null || request.refreshToken() == null || request.refreshToken().isBlank()) {
+            throw new TokenException("Refresh token is required");
+        }
 
-        // Rotation: the presented token dies with the response that replaces it.
-        refreshTokenService.revoke(request.refreshToken());
-        activityLogService.success(user, ActivityType.TOKEN_REFRESHED, "Access token refreshed");
+        RefreshTokenService.RotationResult result = refreshTokenService.rotate(request.refreshToken());
+        if (!result.isSuccess()) {
+            throw new TokenException(result.errorMessage() != null ? result.errorMessage() : "Failed to rotate refresh token");
+        }
 
-        boolean rememberMe = stored.getExpiresAt()
-                .isAfter(Instant.now().plus(appProperties.shortLivedRefreshExpiration()));
-        return issueSession(user, rememberMe);
+        User user = result.user();
+        RefreshTokenService.IssuedRefreshToken newRefresh = result.issuedRefreshToken();
+        JwtTokenProvider.IssuedToken newAccess = tokenProvider.issueAccessToken(
+                user.getId(), user.getEmail(), user.getRole().authority());
+
+        return new AuthResponse(
+                newAccess.token(),
+                newRefresh.token(),
+                BEARER,
+                newAccess.expiresAt(),
+                newRefresh.expiresAt(),
+                userMapper.toResponse(user));
     }
 
     @Override
