@@ -2,6 +2,8 @@ package com.velorix.sentinel.service.impl;
 
 import com.velorix.sentinel.config.properties.AppProperties;
 import com.velorix.sentinel.dto.auth.AuthResponse;
+import com.velorix.sentinel.dto.auth.ChangePasswordRequest;
+import com.velorix.sentinel.dto.auth.DeleteAccountRequest;
 import com.velorix.sentinel.dto.auth.ForgotPasswordRequest;
 import com.velorix.sentinel.dto.auth.LoginRequest;
 import com.velorix.sentinel.dto.auth.RefreshTokenRequest;
@@ -12,6 +14,7 @@ import com.velorix.sentinel.dto.auth.UserResponse;
 import com.velorix.sentinel.dto.auth.VerifyEmailRequest;
 import com.velorix.sentinel.entity.OAuthExchangeCode;
 import com.velorix.sentinel.entity.RefreshToken;
+import com.velorix.sentinel.entity.UploadedFile;
 import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.VerificationToken;
 import com.velorix.sentinel.entity.enums.ActivityType;
@@ -23,7 +26,10 @@ import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.exception.TokenException;
 import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UserMapper;
+import com.velorix.sentinel.repository.ActivityLogRepository;
 import com.velorix.sentinel.repository.OAuthExchangeCodeRepository;
+import com.velorix.sentinel.repository.RefreshTokenRepository;
+import com.velorix.sentinel.repository.UploadedFileRepository;
 import com.velorix.sentinel.repository.UserRepository;
 import com.velorix.sentinel.repository.VerificationTokenRepository;
 import com.velorix.sentinel.security.JwtTokenProvider;
@@ -33,11 +39,14 @@ import com.velorix.sentinel.service.AuthService;
 import com.velorix.sentinel.service.EmailService;
 import com.velorix.sentinel.service.RefreshTokenService;
 import com.velorix.sentinel.service.VerificationTokenService;
+import com.velorix.sentinel.storage.FileStorageService;
 import com.velorix.sentinel.util.TokenUtils;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -86,6 +95,10 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final AppProperties appProperties;
     private final CurrentUserProvider currentUserProvider;
+    private final UploadedFileRepository uploadedFileRepository;
+    private final FileStorageService fileStorageService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final ActivityLogRepository activityLogRepository;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -100,7 +113,11 @@ public class AuthServiceImpl implements AuthService {
             ActivityLogService activityLogService,
             EmailService emailService,
             AppProperties appProperties,
-            CurrentUserProvider currentUserProvider) {
+            CurrentUserProvider currentUserProvider,
+            UploadedFileRepository uploadedFileRepository,
+            FileStorageService fileStorageService,
+            RefreshTokenRepository refreshTokenRepository,
+            ActivityLogRepository activityLogRepository) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
@@ -114,6 +131,10 @@ public class AuthServiceImpl implements AuthService {
         this.emailService = emailService;
         this.appProperties = appProperties;
         this.currentUserProvider = currentUserProvider;
+        this.uploadedFileRepository = uploadedFileRepository;
+        this.fileStorageService = fileStorageService;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.activityLogRepository = activityLogRepository;
     }
 
 
@@ -445,6 +466,100 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenService.revokeAllForUser(user);
         emailService.sendPasswordChanged(user);
         activityLogService.success(user, ActivityType.PASSWORD_RESET_COMPLETED, "Password reset completed");
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User user = currentUserProvider.requireUser();
+
+        if (request == null || request.currentPassword() == null || request.currentPassword().isBlank()) {
+            throw new BadRequestException("Current password is required");
+        }
+        if (request.newPassword() == null || request.newPassword().isBlank()) {
+            throw new BadRequestException("New password is required");
+        }
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            activityLogService.failure(user, ActivityType.PROFILE_UPDATED,
+                    "Password change rejected: Incorrect current password");
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+
+        // A password change invalidates all existing sessions.
+        refreshTokenService.revokeAllForUser(user);
+        emailService.sendPasswordChanged(user);
+        activityLogService.success(user, ActivityType.PROFILE_UPDATED, "Password changed successfully");
+        log.info("Password changed successfully for user {}", user.getId());
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount(DeleteAccountRequest request) {
+        User user = currentUserProvider.requireUser();
+
+        if (user.isOAuthUser()) {
+            boolean confirmed = request != null && (
+                    "DELETE".equalsIgnoreCase(request.confirmation())
+                    || "DELETE".equalsIgnoreCase(request.password())
+                    || (request.password() != null && !request.password().isBlank() && passwordEncoder.matches(request.password(), user.getPassword())));
+            if (!confirmed) {
+                activityLogService.failure(user, ActivityType.ACCOUNT_DEACTIVATED,
+                        "Account deletion rejected: Confirmation phrase 'DELETE' required");
+                throw new BadRequestException("Please confirm account deletion by typing 'DELETE'");
+            }
+        } else {
+            if (request == null || request.password() == null || request.password().isBlank()) {
+                activityLogService.failure(user, ActivityType.ACCOUNT_DEACTIVATED,
+                        "Account deletion rejected: Password is required");
+                throw new BadRequestException("Password is required to confirm account deletion");
+            }
+            if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+                activityLogService.failure(user, ActivityType.ACCOUNT_DEACTIVATED,
+                        "Account deletion rejected: Incorrect password");
+                throw new BadRequestException("Incorrect password for account deletion");
+            }
+        }
+
+        UUID userId = user.getId();
+        log.info("Commencing account deletion for user {} ({})", userId, user.getEmail());
+
+        // 1. Identify all capture storage keys for this user
+        List<UploadedFile> userFiles = uploadedFileRepository.findAllByUserId(userId);
+        List<String> storageKeys = userFiles.stream()
+                .map(UploadedFile::getStoredFileName)
+                .filter(Objects::nonNull)
+                .toList();
+
+        // 2. Cascade delete database entities
+        uploadedFileRepository.deleteAll(userFiles);
+        refreshTokenRepository.deleteAllByUserId(userId);
+        verificationTokenRepository.deleteAllByUserId(userId);
+        oauthExchangeCodeRepository.deleteAllByUserId(userId);
+        activityLogRepository.deleteAllByUserId(userId);
+
+        // Delete user row
+        userRepository.delete(user);
+
+        // 3. Purge storage objects
+        for (String storageKey : storageKeys) {
+            try {
+                fileStorageService.delete(storageKey);
+                log.info("Deleted capture object '{}' for deleted user {}", storageKey, userId);
+            } catch (Exception ex) {
+                log.warn("Failed to delete storage object '{}' for user {}: {}", storageKey, userId, ex.getMessage());
+            }
+        }
+
+        SecurityContextHolder.clearContext();
+        log.info("Completed account deletion for user {}", userId);
     }
 
     @Override

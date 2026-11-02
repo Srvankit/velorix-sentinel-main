@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   Bell,
   Building2,
   Info,
@@ -10,11 +11,20 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ProtectedRoute } from "@/components/auth";
 import { PageHeader, StatusBadge } from "@/components/common";
 import { UserProfilePanel } from "@/components/soc";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -22,9 +32,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/layouts";
 import { cn } from "@/lib/utils";
+import { authService } from "@/services/authService";
 import { APP_NAME, COMPANY_NAME } from "@/utils/constants";
 import { apiConfig } from "@/utils/apiConfig";
 import { formatDateTime } from "@/utils/format";
+import { isStrongPassword } from "@/utils/password";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -51,13 +63,15 @@ function Panel({
   title,
   description,
   children,
+  className,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="glass-panel rounded-2xl p-6">
+    <section className={cn("glass-panel rounded-2xl p-6", className)}>
       <header className="mb-5">
         <h2 className="font-display text-base font-semibold tracking-tight">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -147,7 +161,90 @@ function AppearanceSettings() {
 }
 
 function SettingsPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  // Change Password state
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Delete Account state
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+    if (!isStrongPassword(newPassword)) {
+      setPasswordError(
+        "New password must be 10–72 characters and contain uppercase, lowercase, number, and special character.",
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError("New password must be different from current password.");
+      return;
+    }
+
+    try {
+      setIsSubmittingPassword(true);
+      await authService.changePassword({ currentPassword, newPassword });
+      toast.success("Password changed successfully.", {
+        description: "Other active sessions have been invalidated.",
+      });
+      setIsChangePasswordOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = apiErr?.response?.data?.message || apiErr?.message || "Failed to change password.";
+      setPasswordError(msg);
+      toast.error("Failed to change password", { description: msg });
+    } finally {
+      setIsSubmittingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+
+    try {
+      setIsDeletingAccount(true);
+      const isDeletePhrase = deletePassword.trim().toUpperCase() === "DELETE";
+      await authService.deleteAccount({
+        password: isDeletePhrase ? undefined : deletePassword,
+        confirmation: isDeletePhrase ? "DELETE" : undefined,
+      });
+      toast.success("Account deleted successfully.");
+      setIsDeleteAccountOpen(false);
+      await logout();
+      navigate({ to: "/login" });
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = apiErr?.response?.data?.message || apiErr?.message || "Failed to delete account.";
+      setDeleteError(msg);
+      toast.error("Account deletion failed", { description: msg });
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -220,7 +317,7 @@ function SettingsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="security" className="mt-6">
+          <TabsContent value="security" className="mt-6 space-y-6">
             <Panel title="Security" description="Credentials and account protection.">
               <div className="space-y-1">
                 <ToggleRow
@@ -239,11 +336,44 @@ function SettingsPage() {
                 />
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" disabled>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPasswordError(null);
+                    setIsChangePasswordOpen(true);
+                  }}
+                >
                   Change password
                 </Button>
                 <Button variant="outline" size="sm" disabled>
                   Download recovery codes
+                </Button>
+              </div>
+            </Panel>
+
+            <Panel
+              title="Danger zone"
+              description="Irreversible actions regarding your account."
+              className="border-destructive/40"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-destructive">Delete account</p>
+                  <p className="text-xs text-muted-foreground">
+                    Permanently delete your profile, capture files, analysis findings, and active sessions.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeletePassword("");
+                    setIsDeleteAccountOpen(true);
+                  }}
+                >
+                  Delete account
                 </Button>
               </div>
             </Panel>
@@ -342,6 +472,131 @@ function SettingsPage() {
             </Panel>
           </TabsContent>
         </Tabs>
+
+        {/* Change Password Dialog */}
+        <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change password</DialogTitle>
+              <DialogDescription>
+                Update your account password. All other active sessions and refresh tokens will be
+                immediately revoked.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {passwordError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  {passwordError}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password">Current password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password">New password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Must be 10–72 characters, with uppercase, lowercase, digit, and special character.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-new-password">Confirm new password</Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsChangePasswordOpen(false)}
+                  disabled={isSubmittingPassword}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmittingPassword}>
+                  {isSubmittingPassword ? "Updating..." : "Update password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Account Dialog */}
+        <Dialog open={isDeleteAccountOpen} onOpenChange={setIsDeleteAccountOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="size-5" />
+                <DialogTitle className="text-destructive">Delete account</DialogTitle>
+              </div>
+              <DialogDescription>
+                This action is irreversible. All of your personal data, uploaded capture files,
+                analysis findings, and active sessions will be permanently purged from the system.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              {deleteError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  {deleteError}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="delete-confirm-input">
+                  Enter password or type &quot;DELETE&quot; to confirm:
+                </Label>
+                <Input
+                  id="delete-confirm-input"
+                  type="password"
+                  placeholder="Enter password or DELETE"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  required
+                />
+              </div>
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDeleteAccountOpen(false)}
+                  disabled={isDeletingAccount}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={isDeletingAccount || !deletePassword.trim()}
+                >
+                  {isDeletingAccount ? "Deleting account..." : "Permanently delete account"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   );

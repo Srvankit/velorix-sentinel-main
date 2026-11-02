@@ -81,6 +81,11 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(
+                                ApiConstants.AUTH_BASE + "/change-password",
+                                ApiConstants.AUTH_BASE + "/account",
+                                ApiConstants.AUTH_BASE + "/link-oauth",
+                                ApiConstants.AUTH_BASE + "/me").authenticated()
                         .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ApiConstants.PROTECTED_PATTERN).authenticated()
                         .anyRequest().authenticated())

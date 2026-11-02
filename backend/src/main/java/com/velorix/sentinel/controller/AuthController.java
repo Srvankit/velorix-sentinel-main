@@ -3,6 +3,8 @@ package com.velorix.sentinel.controller;
 import com.velorix.sentinel.common.ApiResponse;
 import com.velorix.sentinel.constants.ApiConstants;
 import com.velorix.sentinel.dto.auth.AuthResponse;
+import com.velorix.sentinel.dto.auth.ChangePasswordRequest;
+import com.velorix.sentinel.dto.auth.DeleteAccountRequest;
 import com.velorix.sentinel.dto.auth.ForgotPasswordRequest;
 import com.velorix.sentinel.dto.auth.LinkOAuthRequest;
 import com.velorix.sentinel.dto.auth.LoginRequest;
@@ -24,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -153,5 +156,31 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> linkOAuth(@Valid @RequestBody LinkOAuthRequest request) {
         authService.linkOAuth(request.provider(), request.providerId());
         return ResponseEntity.ok(ApiResponse.success(null, "Social account linked successfully"));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Update account password for authenticated user",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password changed successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed or incorrect current password"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
+    }
+
+    @DeleteMapping("/account")
+    @Operation(summary = "Permanently delete authenticated user account and all associated data",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Account deleted successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Confirmation or password verification failed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(@RequestBody(required = false) DeleteAccountRequest request) {
+        authService.deleteAccount(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Account deleted successfully"));
     }
 }

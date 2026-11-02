@@ -27,4 +27,8 @@ public interface OAuthExchangeCodeRepository extends JpaRepository<OAuthExchange
     @Modifying
     @Query("DELETE FROM OAuthExchangeCode c WHERE c.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    @Modifying
+    @Query("DELETE FROM OAuthExchangeCode c WHERE c.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
 }

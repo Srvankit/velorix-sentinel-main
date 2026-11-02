@@ -1,6 +1,8 @@
 package com.velorix.sentinel.service;
 
 import com.velorix.sentinel.dto.auth.AuthResponse;
+import com.velorix.sentinel.dto.auth.ChangePasswordRequest;
+import com.velorix.sentinel.dto.auth.DeleteAccountRequest;
 import com.velorix.sentinel.dto.auth.ForgotPasswordRequest;
 import com.velorix.sentinel.dto.auth.LoginRequest;
 import com.velorix.sentinel.dto.auth.RefreshTokenRequest;
@@ -52,6 +54,10 @@ public interface AuthService {
     void forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
+
+    void changePassword(ChangePasswordRequest request);
+
+    void deleteAccount(DeleteAccountRequest request);
 
     UserResponse verifyEmail(VerifyEmailRequest request);
 

@@ -3,6 +3,7 @@ package com.velorix.sentinel.repository;
 import com.velorix.sentinel.entity.UploadedFile;
 import com.velorix.sentinel.entity.enums.UploadStatus;
 import com.velorix.sentinel.repository.spec.UploadedFileSpecifications;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,8 @@ public interface UploadedFileRepository
      */
 
     Optional<UploadedFile> findByIdAndUserId(UUID id, UUID userId);
+
+    List<UploadedFile> findAllByUserId(UUID userId);
 
     Optional<UploadedFile> findByStoredFileName(String storedFileName);
 

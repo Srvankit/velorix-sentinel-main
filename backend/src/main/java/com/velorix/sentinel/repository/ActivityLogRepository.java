@@ -26,4 +26,8 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> 
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("delete from ActivityLog al where al.id in :ids")
     int deleteByIdsIn(@org.springframework.data.repository.query.Param("ids") java.util.List<UUID> ids);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM ActivityLog al WHERE al.user.id = :userId")
+    int deleteAllByUserId(@org.springframework.data.repository.query.Param("userId") UUID userId);
 }

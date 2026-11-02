@@ -2,6 +2,8 @@ import { api } from "./apiClient";
 import type {
   AuthSession,
   AuthUser,
+  ChangePasswordRequest,
+  DeleteAccountRequest,
   ForgotPasswordRequest,
   LoginRequest,
   OAuthExchangeRequest,
@@ -29,6 +31,8 @@ export const AUTH_ENDPOINTS = {
   refresh: "/auth/refresh",
   logout: "/auth/logout",
   me: "/auth/me",
+  changePassword: "/auth/change-password",
+  deleteAccount: "/auth/account",
 } as const;
 
 export const authService = {
@@ -76,4 +80,12 @@ export const authService = {
 
   /** GET /api/auth/me */
   currentUser: () => api.get<AuthUser>(AUTH_ENDPOINTS.me),
+
+  /** POST /api/auth/change-password */
+  changePassword: (payload: ChangePasswordRequest) =>
+    api.post<void, ChangePasswordRequest>(AUTH_ENDPOINTS.changePassword, payload),
+
+  /** DELETE /api/auth/account */
+  deleteAccount: (payload?: DeleteAccountRequest) =>
+    api.delete<void>(AUTH_ENDPOINTS.deleteAccount, payload ? { data: payload } : undefined),
 };
