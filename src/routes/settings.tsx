@@ -439,7 +439,7 @@ function SettingsPage() {
                 {[
                   ["Organisation", COMPANY_NAME],
                   ["Product", APP_NAME],
-                  ["API endpoint", apiConfig.baseUrl],
+                  ["API endpoint", apiConfig.baseUrl || "Not configured"],
                   ["Environment", import.meta.env.MODE === "production" ? "Production" : "Preview"],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl border border-border/70 bg-surface/40 p-4">

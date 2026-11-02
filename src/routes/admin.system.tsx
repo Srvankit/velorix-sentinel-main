@@ -36,7 +36,7 @@ function SystemConfigurationPage() {
       >
         <dl className="grid gap-2 md:grid-cols-2">
           <Field label="Platform" value={`${APP_NAME} · ${COMPANY_NAME}`} />
-          <Field label="API base URL" value={apiConfig.baseUrl} />
+          <Field label="API base URL" value={apiConfig.baseUrl || "Not configured"} />
           <Field label="Host context" value={apiConfig.isRemoteHost ? "Remote" : "Local"} />
           <Field
             label="Backend environment"

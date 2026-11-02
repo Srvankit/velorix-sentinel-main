@@ -30,12 +30,12 @@ export interface ApiConfig {
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
 
-function isLocalHostname(hostname: string): boolean {
+export function isLocalHostname(hostname: string): boolean {
   return LOCAL_HOSTNAMES.has(hostname.toLowerCase());
 }
 
 /** True when the document is being served from something other than the local machine. */
-function detectRemoteHost(): boolean {
+export function detectRemoteHost(): boolean {
   if (typeof window === "undefined" || !window.location) return false;
   return !isLocalHostname(window.location.hostname);
 }
@@ -48,20 +48,39 @@ function parseAbsolute(url: string): URL | null {
   }
 }
 
-/** Deployed Velorix Sentinel API. Used when no environment override is provided. */
-export const DEFAULT_API_BASE_URL = "https://velorix-sentinel-backend.onrender.com/api";
-
-export function resolveApiConfig(rawValue: string | undefined, isRemoteHost: boolean): ApiConfig {
+/**
+ * Resolves the API configuration from the configured environment string.
+ *
+ * In development, unconfigured instances default to the local backend.
+ * In production or remote deployments, unconfigured instances fail fast
+ * and prevent unintentional traffic to production.
+ */
+export function resolveApiConfig(
+  rawValue: string | undefined,
+  isRemoteHost: boolean,
+  isDev: boolean = Boolean(import.meta.env?.DEV),
+): ApiConfig {
   const configured = rawValue?.trim();
 
   if (!configured) {
-    // Use the Render origin in production. Netlify's reverse proxy does not
-    // preserve browser preflight headers reliably for JSON authentication calls.
+    // In development, default to local backend; in production, fail fast if unconfigured
+    if (isDev) {
+      return {
+        baseUrl: "http://localhost:8080/api",
+        isUsable: true,
+        isRemoteHost: false,
+        problem: null,
+      };
+    }
     return {
-      baseUrl: DEFAULT_API_BASE_URL,
-      isUsable: true,
+      baseUrl: "",
+      isUsable: false,
       isRemoteHost,
-      problem: null,
+      problem: {
+        kind: "missing",
+        title: "API URL is not configured",
+        message: "VITE_API_BASE_URL is not configured.",
+      },
     };
   }
 
@@ -78,7 +97,7 @@ export function resolveApiConfig(rawValue: string | undefined, isRemoteHost: boo
   const parsed = parseAbsolute(configured);
   if (!parsed || !/^https?:$/.test(parsed.protocol)) {
     return {
-      baseUrl: DEFAULT_API_BASE_URL,
+      baseUrl: "",
       isUsable: false,
       isRemoteHost,
       problem: {
@@ -104,8 +123,8 @@ export function resolveApiConfig(rawValue: string | undefined, isRemoteHost: boo
         title: "This preview cannot reach your local backend",
         message:
           "The Velorix Sentinel frontend is running remotely, but the API is configured at " +
-          `${parsed.origin}, which only exists on your own machine. Set VITE_API_BASE_URL to the ` +
-          `deployed API (${DEFAULT_API_BASE_URL}) and redeploy the frontend.`,
+          `${parsed.origin}, which only exists on your own machine. Set VITE_API_BASE_URL to your ` +
+          "deployed API endpoint and redeploy the frontend.",
       },
     };
   }
