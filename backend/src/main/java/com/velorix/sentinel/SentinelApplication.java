@@ -6,6 +6,7 @@ import com.velorix.sentinel.config.properties.DetectionProperties;
 import com.velorix.sentinel.config.properties.InspectionProperties;
 import com.velorix.sentinel.config.properties.JwtProperties;
 import com.velorix.sentinel.config.properties.MailProperties;
+import com.velorix.sentinel.config.properties.RateLimitProperties;
 import com.velorix.sentinel.config.properties.RetentionProperties;
 import com.velorix.sentinel.config.properties.StorageProperties;
 import org.springframework.boot.SpringApplication;
@@ -24,7 +25,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         StorageProperties.class,
         InspectionProperties.class,
         DetectionProperties.class,
-        RetentionProperties.class})
+        RetentionProperties.class,
+        RateLimitProperties.class})
 public class SentinelApplication {
 
     public static void main(String[] args) {

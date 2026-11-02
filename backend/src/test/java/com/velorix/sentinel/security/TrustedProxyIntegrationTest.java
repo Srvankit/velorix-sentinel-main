@@ -26,6 +26,11 @@ class TrustedProxyIntegrationTest {
     @Autowired
     private ActivityLogService activityLogService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        RequestUtils.setTrustedProxyManager(trustedProxyManager);
+    }
+
     @Test
     @DisplayName("TrustedProxyManager bean is wired in application context")
     void trustedProxyManagerBeanLoaded() {

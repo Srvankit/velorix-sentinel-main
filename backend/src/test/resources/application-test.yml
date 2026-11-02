@@ -20,6 +20,8 @@ velorix:
     frontend-base-url: http://localhost:5173
   retention:
     enabled: false
+  ratelimit:
+    enabled: false
   security:
     jwt:
       # Test-only signing material; production reads JWT_SECRET from the environment.

@@ -9,6 +9,8 @@ import com.velorix.sentinel.security.OAuth2LoginSuccessHandler;
 import com.velorix.sentinel.security.OAuth2LoginFailureHandler;
 import com.velorix.sentinel.security.GitHubOAuth2UserService;
 import com.velorix.sentinel.security.TrustedProxyManager;
+import com.velorix.sentinel.security.ratelimit.RateLimitingFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -38,6 +40,7 @@ import org.springframework.security.config.Customizer;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
     private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
@@ -48,6 +51,7 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitingFilter rateLimitingFilter,
             JwtAuthenticationEntryPoint authenticationEntryPoint,
             JwtAccessDeniedHandler accessDeniedHandler,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
@@ -56,6 +60,7 @@ public class SecurityConfig {
             GitHubOAuth2UserService oauth2UserService,
             TrustedProxyManager trustedProxyManager) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitingFilter = rateLimitingFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.clientRegistrations = clientRegistrations;
@@ -79,7 +84,8 @@ public class SecurityConfig {
                         .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ApiConstants.PROTECTED_PATTERN).authenticated()
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
         if (clientRegistrations.getIfAvailable() != null) {
             security.oauth2Login(oauth -> oauth
                     .authorizationEndpoint(endpoint -> endpoint.baseUri(ApiConstants.API_ROOT + "/oauth2/authorization"))
@@ -88,6 +94,13 @@ public class SecurityConfig {
                     .failureHandler(oauth2LoginFailureHandler));
         }
         return security.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<RateLimitingFilter> rateLimitingFilterRegistration(RateLimitingFilter filter) {
+        FilterRegistrationBean<RateLimitingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

@@ -2,6 +2,8 @@ package com.velorix.sentinel.security;
 
 import com.velorix.sentinel.util.RequestUtils;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -64,9 +66,10 @@ public class TrustedProxyManager {
             return null;
         }
 
-        String remoteAddr = stripPortIfPresent(request.getRemoteAddr());
+        HttpServletRequest rootRequest = unwrapToRoot(request);
+        String remoteAddr = stripPortIfPresent(rootRequest.getRemoteAddr());
         if (remoteAddr == null || !isValidLiteralIp(remoteAddr)) {
-            return request.getRemoteAddr();
+            return rootRequest.getRemoteAddr();
         }
 
         // If the immediate connection does NOT come from a trusted proxy,
@@ -76,7 +79,7 @@ public class TrustedProxyManager {
         }
 
         // The immediate peer is trusted. Traverse X-Forwarded-For right-to-left.
-        List<String> forwardedIps = extractForwardedIps(request);
+        List<String> forwardedIps = extractForwardedIps(rootRequest);
         if (!forwardedIps.isEmpty()) {
             for (int i = forwardedIps.size() - 1; i >= 0; i--) {
                 String candidate = forwardedIps.get(i);
@@ -98,19 +101,31 @@ public class TrustedProxyManager {
         }
 
         // If X-Forwarded-For is absent or empty, check X-Real-IP
-        String realIp = extractSingleHeaderIp(request, "X-Real-IP");
+        String realIp = extractSingleHeaderIp(rootRequest, "X-Real-IP");
         if (realIp != null) {
             return realIp;
         }
 
         // Next check CF-Connecting-IP
-        String cfConnectingIp = extractSingleHeaderIp(request, "CF-Connecting-IP");
+        String cfConnectingIp = extractSingleHeaderIp(rootRequest, "CF-Connecting-IP");
         if (cfConnectingIp != null) {
             return cfConnectingIp;
         }
 
         // Fallback to the immediate remote address
         return remoteAddr;
+    }
+
+    private HttpServletRequest unwrapToRoot(HttpServletRequest request) {
+        ServletRequest current = request;
+        while (current instanceof ServletRequestWrapper wrapper) {
+            ServletRequest wrapped = wrapper.getRequest();
+            if (wrapped == null || wrapped == current) {
+                break;
+            }
+            current = wrapped;
+        }
+        return (current instanceof HttpServletRequest httpReq) ? httpReq : request;
     }
 
     /**

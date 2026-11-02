@@ -134,6 +134,21 @@ velorix:
     verification-token-retention: ${RETENTION_VERIFICATION_TOKENS:P7D}
     activity-log-retention: ${RETENTION_ACTIVITY_LOGS:P90D}
     soft-deleted-file-retention: ${RETENTION_SOFT_DELETED_FILES:P30D}
+  ratelimit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    login-ip-capacity: ${RATE_LIMIT_LOGIN_IP_CAPACITY:5}
+    login-ip-duration: ${RATE_LIMIT_LOGIN_IP_DURATION:PT1M}
+    login-email-capacity: ${RATE_LIMIT_LOGIN_EMAIL_CAPACITY:10}
+    login-email-duration: ${RATE_LIMIT_LOGIN_EMAIL_DURATION:PT1M}
+    register-ip-capacity: ${RATE_LIMIT_REGISTER_IP_CAPACITY:3}
+    register-ip-duration: ${RATE_LIMIT_REGISTER_IP_DURATION:PT1H}
+    forgot-password-capacity: ${RATE_LIMIT_FORGOT_PASSWORD_CAPACITY:3}
+    forgot-password-duration: ${RATE_LIMIT_FORGOT_PASSWORD_DURATION:PT15M}
+    file-upload-capacity: ${RATE_LIMIT_FILE_UPLOAD_CAPACITY:10}
+    file-upload-duration: ${RATE_LIMIT_FILE_UPLOAD_DURATION:PT1H}
+    general-api-capacity: ${RATE_LIMIT_GENERAL_API_CAPACITY:120}
+    general-api-duration: ${RATE_LIMIT_GENERAL_API_DURATION:PT1M}
+    max-buckets: ${RATE_LIMIT_MAX_BUCKETS:50000}
 
 springdoc:
   api-docs:
