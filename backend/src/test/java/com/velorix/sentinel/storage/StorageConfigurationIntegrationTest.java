@@ -21,7 +21,9 @@ class StorageConfigurationIntegrationTest {
                     new StorageProperties.S3Properties(
                             "test-bucket", "us-east-1", "http://localhost:9000",
                             "test-key", "test-secret", true, "captures/"
-                    )
+                    ),
+                    null,
+                    null
             ));
 
     @Test

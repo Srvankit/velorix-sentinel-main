@@ -58,7 +58,9 @@ class S3CompatibleFileStorageServiceTest {
                 DataSize.ofMegabytes(100),
                 List.of("pcap", "pcapng"),
                 List.of("application/vnd.tcpdump.pcap"),
-                s3Properties
+                s3Properties,
+                null,
+                null
         );
         storageService = new S3CompatibleFileStorageService(properties, s3Client);
     }

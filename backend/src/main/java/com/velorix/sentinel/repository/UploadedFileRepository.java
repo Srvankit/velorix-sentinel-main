@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -32,6 +34,16 @@ public interface UploadedFileRepository
     boolean existsByIdAndUserId(UUID id, UUID userId);
 
     long countByUserIdAndUploadStatusNot(UUID userId, UploadStatus excluded);
+
+    @Query("""
+            SELECT COALESCE(SUM(uf.fileSize), 0)
+            FROM UploadedFile uf
+            WHERE uf.user.id = :userId
+              AND uf.uploadStatus != :excludedStatus
+            """)
+    long sumBytesByUserIdAndUploadStatusNot(
+            @Param("userId") UUID userId,
+            @Param("excludedStatus") UploadStatus excludedStatus);
 
     /** Dashboard counter: live captures for the owner scope ({@code null} = all accounts). */
     default long countForOwner(UUID userId) {

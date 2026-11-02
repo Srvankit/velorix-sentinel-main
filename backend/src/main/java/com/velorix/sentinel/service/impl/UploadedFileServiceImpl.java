@@ -1,6 +1,7 @@
 package com.velorix.sentinel.service.impl;
 
 import com.velorix.sentinel.common.PageResponse;
+import com.velorix.sentinel.config.properties.StorageProperties;
 import com.velorix.sentinel.dto.common.PageRequestParams;
 import com.velorix.sentinel.dto.file.UploadedFileFilter;
 import com.velorix.sentinel.dto.file.UploadedFileResponse;
@@ -8,10 +9,13 @@ import com.velorix.sentinel.entity.UploadedFile;
 import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.enums.ActivityType;
 import com.velorix.sentinel.entity.enums.UploadStatus;
+import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.exception.ResourceNotFoundException;
+import com.velorix.sentinel.exception.UnauthorizedException;
 import com.velorix.sentinel.mapper.UploadedFileMapper;
 import com.velorix.sentinel.repository.UploadedFileRepository;
+import com.velorix.sentinel.repository.UserRepository;
 import com.velorix.sentinel.repository.spec.UploadedFileSpecifications;
 import com.velorix.sentinel.security.CurrentUserProvider;
 import com.velorix.sentinel.service.ActivityLogService;
@@ -50,6 +54,8 @@ public class UploadedFileServiceImpl implements UploadedFileService {
     private final UploadValidationService uploadValidationService;
     private final FileStorageService fileStorageService;
     private final ActivityLogService activityLogService;
+    private final UserRepository userRepository;
+    private final StorageProperties storageProperties;
 
     public UploadedFileServiceImpl(
             UploadedFileRepository uploadedFileRepository,
@@ -57,19 +63,34 @@ public class UploadedFileServiceImpl implements UploadedFileService {
             CurrentUserProvider currentUserProvider,
             UploadValidationService uploadValidationService,
             FileStorageService fileStorageService,
-            ActivityLogService activityLogService) {
+            ActivityLogService activityLogService,
+            UserRepository userRepository,
+            StorageProperties storageProperties) {
         this.uploadedFileRepository = uploadedFileRepository;
         this.uploadedFileMapper = uploadedFileMapper;
         this.currentUserProvider = currentUserProvider;
         this.uploadValidationService = uploadValidationService;
         this.fileStorageService = fileStorageService;
         this.activityLogService = activityLogService;
+        this.userRepository = userRepository;
+        this.storageProperties = storageProperties;
     }
 
     @Override
     @Transactional
     public UploadedFileResponse upload(MultipartFile file) {
-        User owner = currentUserProvider.requireUser();
+        UUID userId = currentUserProvider.requireUserId();
+        User owner = userRepository.findByIdForUpdate(userId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new UnauthorizedException("Your account is no longer active"));
+
+        if (!owner.isVerified()) {
+            log.warn("Upload rejected for user {}: email not verified", owner.getId());
+            activityLogService.failure(owner, ActivityType.FILE_UPLOAD_FAILED,
+                    "Capture upload rejected: Email verification is required before uploading captures.");
+            throw new ForbiddenException("Please verify your email address before uploading captures.", "EMAIL_NOT_VERIFIED");
+        }
+
         String originalName;
         try {
             originalName = uploadValidationService.validate(file);
@@ -80,10 +101,45 @@ public class UploadedFileServiceImpl implements UploadedFileService {
             throw ex;
         }
 
+        long currentFileCount = uploadedFileRepository.countByUserIdAndUploadStatusNot(
+                owner.getId(), UploadStatus.DELETED);
+        if (currentFileCount >= storageProperties.maxFilesPerUser()) {
+            String msg = "Capture file quota exceeded (max %d files). Please delete older captures before uploading new files."
+                    .formatted(storageProperties.maxFilesPerUser());
+            log.warn("Upload rejected for user {}: file quota exceeded ({}/{})",
+                    owner.getId(), currentFileCount, storageProperties.maxFilesPerUser());
+            activityLogService.failure(owner, ActivityType.FILE_UPLOAD_FAILED, msg);
+            throw new ResourceConflictException(msg);
+        }
+
+        long currentStorageBytes = uploadedFileRepository.sumBytesByUserIdAndUploadStatusNot(
+                owner.getId(), UploadStatus.DELETED);
+        long incomingBytes = file.getSize();
+        long maxStorageBytes = storageProperties.maxStoragePerUserBytes();
+        long limitMb = storageProperties.maxStoragePerUser().toMegabytes();
+        String limitStr = limitMb > 0 ? limitMb + " MB" : maxStorageBytes + " bytes";
+
+        if (currentStorageBytes + incomingBytes > maxStorageBytes) {
+            String msg = "Storage quota exceeded (max %s). Please delete older captures before uploading new files."
+                    .formatted(limitStr);
+            log.warn("Upload rejected for user {}: storage quota exceeded ({} + {} > {} bytes)",
+                    owner.getId(), currentStorageBytes, incomingBytes, maxStorageBytes);
+            activityLogService.failure(owner, ActivityType.FILE_UPLOAD_FAILED, msg);
+            throw new ResourceConflictException(msg);
+        }
+
         String storageKey = FileNameUtils.uniqueStorageKey(FileNameUtils.extension(originalName));
         StoredObject stored = write(owner, originalName, storageKey, file);
 
         try {
+            if (currentStorageBytes + stored.sizeBytes() > maxStorageBytes) {
+                String msg = "Storage quota exceeded (max %s). Please delete older captures before uploading new files."
+                        .formatted(limitStr);
+                log.warn("Upload rejected for user {}: storage quota exceeded after write ({} + {} > {} bytes)",
+                        owner.getId(), currentStorageBytes, stored.sizeBytes(), maxStorageBytes);
+                throw new ResourceConflictException(msg);
+            }
+
             uploadedFileRepository
                     .findByUserIdAndChecksumAndUploadStatusNot(owner.getId(), stored.checksum(), UploadStatus.DELETED)
                     .ifPresent(existing -> {

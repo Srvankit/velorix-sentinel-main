@@ -18,7 +18,9 @@ public record StorageProperties(
         DataSize maxFileSize,
         List<String> allowedExtensions,
         List<String> allowedContentTypes,
-        S3Properties s3) {
+        S3Properties s3,
+        Integer maxFilesPerUser,
+        DataSize maxStoragePerUser) {
 
     private static final List<String> DEFAULT_EXTENSIONS = List.of("pcap", "pcapng");
 
@@ -39,6 +41,8 @@ public record StorageProperties(
         allowedExtensions = normalise(allowedExtensions, DEFAULT_EXTENSIONS);
         allowedContentTypes = normalise(allowedContentTypes, DEFAULT_CONTENT_TYPES);
         s3 = s3 == null ? new S3Properties(null, null, null, null, null, true, null) : s3;
+        maxFilesPerUser = (maxFilesPerUser == null || maxFilesPerUser <= 0) ? 10 : maxFilesPerUser;
+        maxStoragePerUser = maxStoragePerUser == null ? DataSize.ofMegabytes(500) : maxStoragePerUser;
     }
 
     public Set<String> extensions() {
@@ -51,6 +55,10 @@ public record StorageProperties(
 
     public long maxFileSizeBytes() {
         return maxFileSize.toBytes();
+    }
+
+    public long maxStoragePerUserBytes() {
+        return maxStoragePerUser.toBytes();
     }
 
     private static List<String> normalise(List<String> values, List<String> fallback) {

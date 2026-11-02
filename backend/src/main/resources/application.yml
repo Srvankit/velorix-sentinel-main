@@ -93,6 +93,8 @@ velorix:
     # Root directory of the local capture store when provider=filesystem.
     location: ${CAPTURE_STORAGE_LOCATION:./data/captures}
     max-file-size: ${CAPTURE_MAX_FILE_SIZE:100MB}
+    max-files-per-user: ${CAPTURE_MAX_FILES_PER_USER:10}
+    max-storage-per-user: ${CAPTURE_MAX_STORAGE_PER_USER:500MB}
     allowed-extensions: pcap,pcapng
     s3:
       bucket: ${S3_BUCKET_NAME:${SUPABASE_STORAGE_BUCKET:velorix-captures}}
