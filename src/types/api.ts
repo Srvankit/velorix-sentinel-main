@@ -1,5 +1,5 @@
 /**
- * Shared API contract primitives returned by the SentinelAI Spring Boot backend.
+ * Shared API contract primitives returned by the Velorix Sentinel Spring Boot backend.
  */
 
 export interface ApiResponse<T> {

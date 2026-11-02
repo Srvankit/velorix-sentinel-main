@@ -32,5 +32,5 @@ export const storage = {
 };
 
 export const STORAGE_KEYS = {
-  session: "sentinelai.session",
+  session: "velorix.session",
 } as const;

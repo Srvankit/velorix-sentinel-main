@@ -43,14 +43,8 @@ backend/target/
 # IDE / build files
 backend/.idea/
 
-# Environment variables
-.env
-.env.*
-!.env.example
+# Netlify build artifacts
+.netlify/
 
-# Spring Boot / Java
-backend/target/
-*.class
-
-# IDE / build files
-backend/.idea/
+# Lovable tooling metadata
+.lovable/
