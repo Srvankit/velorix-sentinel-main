@@ -3,6 +3,7 @@ package com.velorix.sentinel.service.impl;
 import com.velorix.sentinel.detection.DetectionOutcome;
 import com.velorix.sentinel.entity.Analysis;
 import com.velorix.sentinel.entity.AnalysisSummary;
+import com.velorix.sentinel.entity.UploadedFile;
 import com.velorix.sentinel.entity.enums.ActivityType;
 import com.velorix.sentinel.entity.enums.AnalysisStage;
 import com.velorix.sentinel.entity.enums.AnalysisStatus;
@@ -154,6 +155,24 @@ public class AnalysisRunStateService {
         complete(analysisId, startedAt);
     }
 
+    /** Creates and persists the initial {@code QUEUED} analysis in its own transaction. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Analysis createQueued(UploadedFile file, String engineVersion) {
+        Analysis analysis = analysisRepository.save(Analysis.builder()
+                .uploadedFile(file)
+                .status(AnalysisStatus.QUEUED)
+                .stage(AnalysisStage.PREPARING)
+                .analysisVersion(engineVersion)
+                .build());
+
+        activityLogService.success(
+                file.getUser(),
+                ActivityType.ANALYSIS_STARTED,
+                "Inspection queued for capture %s".formatted(file.getOriginalFileName()));
+
+        return analysis;
+    }
+
     /**
      * Records a terminal failure. A run that dies silently and stays {@code PROCESSING}
      * forever is the worst outcome for a user watching the stepper, so this must always
@@ -166,8 +185,13 @@ public class AnalysisRunStateService {
             analysis.setStatus(AnalysisStatus.FAILED);
             analysis.setStage(AnalysisStage.FAILED);
             analysis.setCompletedAt(completedAt);
-            analysis.setDuration(Duration.between(startedAt, completedAt).toMillis());
+            Instant effectiveStartedAt = startedAt != null ? startedAt : analysis.getStartedAt();
+            long durationMs = (effectiveStartedAt != null && !effectiveStartedAt.isAfter(completedAt))
+                    ? Duration.between(effectiveStartedAt, completedAt).toMillis()
+                    : 0L;
+            analysis.setDuration(durationMs);
             analysis.setFailureReason(truncate(reason));
+            analysisRepository.save(analysis);
 
             activityLogService.failure(
                     analysis.getUploadedFile().getUser(),

@@ -2,6 +2,8 @@ package com.velorix.sentinel.repository;
 
 import com.velorix.sentinel.entity.Analysis;
 import com.velorix.sentinel.entity.enums.AnalysisStatus;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +55,22 @@ public interface AnalysisRepository extends JpaRepository<Analysis, UUID>, JpaSp
                                com.velorix.sentinel.entity.enums.AnalysisStatus.PROCESSING)
             """)
     boolean existsActiveForFile(@Param("uploadedFileId") UUID uploadedFileId);
+
+    /** Analyses matching any of the given statuses, eagerly fetching file and owner. */
+    @EntityGraph(attributePaths = {"uploadedFile", "uploadedFile.user"})
+    List<Analysis> findByStatusIn(Collection<AnalysisStatus> statuses);
+
+    /** Stuck runs in given status older than cutoff, eagerly fetching file and owner. */
+    @EntityGraph(attributePaths = {"uploadedFile", "uploadedFile.user"})
+    @Query("""
+            SELECT a FROM Analysis a
+            WHERE a.status = :status
+              AND ((a.startedAt IS NOT NULL AND a.startedAt < :cutoff)
+                   OR (a.startedAt IS NULL AND a.createdAt < :cutoff))
+            """)
+    List<Analysis> findStuckInStatusBefore(
+            @Param("status") AnalysisStatus status,
+            @Param("cutoff") Instant cutoff);
 
     /* ------------------------------------------------------- dashboard aggregates */
 

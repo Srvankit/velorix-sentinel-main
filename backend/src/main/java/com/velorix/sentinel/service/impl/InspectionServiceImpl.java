@@ -31,9 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Orchestrates inspection runs: validates the request inside the caller's transaction,
@@ -88,29 +85,18 @@ public class InspectionServiceImpl implements InspectionService {
     }
 
     @Override
-    @Transactional
     public AnalysisResponse start(UUID uploadedFileId) {
         UploadedFile file = loadOwnedCapture(uploadedFileId);
         requireInspectable(file);
         requireNoActiveRun(file);
 
-        Analysis analysis = analysisRepository.save(Analysis.builder()
-                .uploadedFile(file)
-                .status(AnalysisStatus.QUEUED)
-                .stage(AnalysisStage.PREPARING)
-                .analysisVersion(properties.engineVersion())
-                .build());
-
-        activityLogService.success(
-                file.getUser(),
-                ActivityType.ANALYSIS_STARTED,
-                "Inspection queued for capture %s".formatted(file.getOriginalFileName()));
+        Analysis analysis = runState.createQueued(file, properties.engineVersion());
 
         UUID analysisId = analysis.getId();
         String storageKey = file.getStoredFileName();
         long declaredSize = file.getFileSize();
 
-        submitAfterCommit(analysisId, () -> execute(analysisId, storageKey, declaredSize));
+        dispatch(analysisId, () -> execute(analysisId, storageKey, declaredSize));
         log.info("Inspection {} queued for capture {} ({} bytes)", analysisId, uploadedFileId, declaredSize);
         return analysisMapper.toResponse(analysis);
     }
@@ -182,8 +168,7 @@ public class InspectionServiceImpl implements InspectionService {
 
     /* ---------------------------------------------------------------- scheduling */
 
-    /** Defers submission until commit so the worker can never race the {@code QUEUED} row. */
-    private void submitAfterCommit(UUID analysisId, Runnable task) {
+    private void dispatch(UUID analysisId, Runnable task) {
         Runnable guarded = () -> {
             try {
                 task.run();
@@ -191,24 +176,12 @@ public class InspectionServiceImpl implements InspectionService {
                 log.error("Inspection worker terminated unexpectedly", ex);
             }
         };
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    dispatch(analysisId, guarded);
-                }
-            });
-        } else {
-            dispatch(analysisId, guarded);
-        }
-    }
-
-    private void dispatch(UUID analysisId, Runnable task) {
         try {
-            executor.execute(task);
+            executor.execute(guarded);
         } catch (RejectedExecutionException ex) {
-            log.error("Inspection could not be scheduled for analysis {}: {}", analysisId, ex.getMessage());
+            log.error("Inspection could not be scheduled for analysis {}: queue full", analysisId);
             runState.fail(analysisId, "Inspection capacity exceeded. Please retry shortly.", Instant.now());
+            throw new ResourceConflictException("Inspection queue is at capacity. Please retry shortly.");
         }
     }
 }

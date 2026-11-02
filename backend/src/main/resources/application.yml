@@ -102,6 +102,10 @@ velorix:
       secret-key: ${AWS_SECRET_ACCESS_KEY:${S3_SECRET_KEY:}}
       path-style-access: ${S3_PATH_STYLE_ACCESS:true}
       prefix: ${S3_PREFIX:captures/}
+  inspection:
+    reaper-interval: ${INSPECTION_REAPER_INTERVAL:60000}
+    reaper-initial-delay: ${INSPECTION_REAPER_INITIAL_DELAY:30000}
+    max-duration: ${INSPECTION_MAX_DURATION:PT15M}
   detection:
     # Stamped onto every finding so results stay traceable to the logic that produced them.
     engine-version: ${DETECTION_ENGINE_VERSION:detect-1.0.0}
@@ -134,6 +138,8 @@ velorix:
     exposed-headers: Authorization
     allow-credentials: true
     max-age: 3600
+  scheduling:
+    enabled: ${SCHEDULING_ENABLED:true}
   retention:
     enabled: ${RETENTION_ENABLED:true}
     cron: ${RETENTION_CRON:0 0 3 * * *}

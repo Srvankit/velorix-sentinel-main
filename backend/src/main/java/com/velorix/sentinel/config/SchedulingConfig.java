@@ -5,13 +5,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Enables Spring task scheduling when {@code velorix.retention.enabled} is true.
+ * Enables Spring task scheduling across the application.
  *
- * <p>In test profiles, scheduling is disabled via {@code velorix.retention.enabled: false}
- * so that background tasks do not interfere with test predictability.</p>
+ * <p>Can be disabled in test environments via {@code velorix.scheduling.enabled: false}
+ * to prevent background tasks from interfering with test predictability.</p>
  */
 @Configuration
 @EnableScheduling
-@ConditionalOnProperty(name = "velorix.retention.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "velorix.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class SchedulingConfig {
 }
