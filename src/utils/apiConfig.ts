@@ -36,7 +36,7 @@ function isLocalHostname(hostname: string): boolean {
 
 /** True when the document is being served from something other than the local machine. */
 function detectRemoteHost(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || !window.location) return false;
   return !isLocalHostname(window.location.hostname);
 }
 

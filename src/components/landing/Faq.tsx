@@ -9,27 +9,27 @@ import { Reveal, Section, SectionHeading } from "./Section";
 const faqs = [
   {
     q: "How does Velorix Sentinel analyze traffic without slowing my network?",
-    a: "Velorix Sentinel inspects traffic out-of-band from a SPAN/TAP feed or from uploaded PCAP files, so there is no inline device and no added latency on production paths.",
+    a: "Velorix Sentinel is optimized for offline PCAP/PCAPNG capture analysis. Inspection runs asynchronously out-of-band against uploaded captures, eliminating inline bottlenecks and adding zero latency to production traffic paths.",
   },
   {
     q: "Do you decrypt TLS traffic?",
-    a: "Decryption is optional. Without keys we analyse TLS metadata, JA3/JA3S fingerprints, certificate chains, timing and volumetrics — enough to detect most C2 and exfiltration patterns. Key material can be supplied for full payload inspection.",
+    a: "Decryption is not required. Velorix Sentinel features a high-performance deterministic rule engine detecting scans, floods, brute-force, beaconing, and anomalous flows using protocol metadata, packet timing, volume, and connection characteristics.",
   },
   {
     q: "Where is my capture data stored?",
-    a: "Captures are encrypted at rest with per-tenant keys. Enterprise customers can pin storage to a specific region or deploy fully on-premises.",
+    a: "Captures are stored in secure, private cloud object storage with strict tenant-isolation and owner-scoped access control. Binaries are validated, stored with unique cryptographic references, and accessible only to authenticated owners.",
   },
   {
-    q: "How accurate are the AI detections?",
-    a: "Detections combine deterministic signatures with behavioural models, and every AI conclusion cites the packets that produced it.",
+    q: "How accurate are the threat detections?",
+    a: "Detections are driven by a high-performance deterministic rule engine detecting scans, floods, brute-force, beaconing, and anomalous flows across 13 specialized security rules. Every finding cites the exact packets and frames that triggered it.",
   },
   {
     q: "Which tools does Velorix Sentinel integrate with?",
-    a: "Native integrations exist for Splunk, Microsoft Sentinel, Elastic, Chronicle, PagerDuty, Slack and generic webhooks, plus a full REST API.",
+    a: "Export findings via standard JSON REST APIs (SIEM webhooks planned). Analysts can query findings, summaries, and packet-level details programmatically using standard authenticated API endpoints.",
   },
   {
-    q: "How long does deployment take?",
-    a: "Most teams are analysing live traffic within an afternoon. Cloud onboarding requires no agents; sensor deployment is a single container per segment.",
+    q: "How long does onboarding take?",
+    a: "Getting started takes under two minutes. Simply register an analyst account, verify your email, and drag-and-drop any standard .pcap or .pcapng capture directly into the web application.",
   },
 ];
 

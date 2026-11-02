@@ -30,9 +30,9 @@ export function Hero() {
           </h1>
 
           <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-            {APP_NAME} performs deep packet inspection on live traffic and PCAP captures, correlates
-            signals across your estate, and turns raw frames into prioritised, analyst-ready
-            intelligence — with automated IOC extraction, risk scoring and remediation guidance.
+            {APP_NAME} performs deep packet inspection on uploaded PCAP and PCAPNG captures, evaluates
+            network telemetry against a 13-rule threat detection engine, and turns raw packet traces into
+            prioritised, analyst-ready intelligence with transparent risk scoring and evidence citations.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">

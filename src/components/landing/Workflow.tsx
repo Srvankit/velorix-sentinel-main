@@ -4,12 +4,12 @@ import { Brain, FileText, Radar, ScanSearch, ShieldCheck, Upload } from "lucide-
 import { Reveal, Section, SectionHeading } from "./Section";
 
 const steps = [
-  { icon: Upload, title: "Upload PCAP", copy: "Drag in captures or stream from a sensor." },
-  { icon: ScanSearch, title: "Analyze Packets", copy: "Full protocol decode at line rate." },
-  { icon: Radar, title: "Detect Threats", copy: "Signature plus behavioural detection." },
-  { icon: Brain, title: "AI Analysis", copy: "Correlation, scoring and narrative." },
-  { icon: FileText, title: "Generate Report", copy: "Executive and technical output." },
-  { icon: ShieldCheck, title: "Take Action", copy: "Contain, rotate, and push to SIEM." },
+  { icon: Upload, title: "Upload PCAP", copy: "Drag in standard PCAP or PCAPNG captures." },
+  { icon: ScanSearch, title: "Analyze Packets", copy: "Streaming multi-layer protocol decode." },
+  { icon: Radar, title: "Detect Threats", copy: "13-rule deterministic threat detection engine." },
+  { icon: Brain, title: "Risk Scoring", copy: "Normalized scoring and evidence linking." },
+  { icon: FileText, title: "Generate Report", copy: "Detailed technical finding summaries." },
+  { icon: ShieldCheck, title: "Take Action", copy: "Contain threats, export findings, and remediate." },
 ];
 
 export function Workflow() {

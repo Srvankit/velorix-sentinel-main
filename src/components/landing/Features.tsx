@@ -1,4 +1,4 @@
-import { Bot, Brain, FileBarChart, Fingerprint, Gauge, Network, Radar, Waves } from "lucide-react";
+import { Database, FileBarChart, Fingerprint, Gauge, Network, Radar, ShieldAlert, Waves } from "lucide-react";
 
 import { Reveal, Section, SectionHeading } from "./Section";
 
@@ -6,42 +6,42 @@ const features = [
   {
     icon: Network,
     title: "Deep Packet Inspection",
-    copy: "Frame-level parsing across every layer — headers, payloads, TLS metadata and application protocols.",
+    copy: "Frame-level decoding across Ethernet, IPv4, IPv6, TCP, UDP, ICMP, DNS, and HTTP layers.",
   },
   {
-    icon: Brain,
-    title: "AI Threat Detection",
-    copy: "Ensemble models score each flow against known adversary tradecraft and novel anomalies.",
+    icon: ShieldAlert,
+    title: "Rule-Based Threat Detection",
+    copy: "High-performance deterministic rule engine detecting scans, floods, brute-force, beaconing, and anomalous flows across 13 rules.",
   },
   {
     icon: Waves,
-    title: "Real-time Analysis",
-    copy: "Streaming pipeline evaluates live traffic as it arrives, so detections surface while the session is still open.",
+    title: "Streaming Capture Pipeline",
+    copy: "Non-blocking streaming pipeline processing large PCAP and PCAPNG captures with automatic stuck-run recovery.",
   },
   {
     icon: Radar,
-    title: "Threat Intelligence",
-    copy: "Continuously enriched feeds map observed indicators to active campaigns and threat actors.",
+    title: "Threat Intelligence & MITRE",
+    copy: "Observed findings correlated against MITRE ATT&CK tactics, threat categories, and severity tiers.",
   },
   {
     icon: Gauge,
-    title: "Behavior Analytics",
-    copy: "Per-host and per-identity baselines surface lateral movement and privilege abuse early.",
+    title: "Traffic Analytics & Profiling",
+    copy: "Per-capture bandwidth metrics, packet counts, protocol breakdown, and top-communicating endpoints.",
   },
   {
     icon: Fingerprint,
-    title: "IOC Extraction",
-    copy: "Automatic extraction of hashes, domains, IPs and JA3 fingerprints ready for your SIEM.",
-  },
-  {
-    icon: Bot,
-    title: "AI Security Assistant",
-    copy: "Ask questions about any capture in natural language and get grounded, cited answers.",
+    title: "Indicator & Artifact Extraction",
+    copy: "Automatic extraction and indexing of source and destination IPs, ports, MAC addresses, and packet headers.",
   },
   {
     icon: FileBarChart,
-    title: "Automated Reports",
-    copy: "Executive and technical reports generated in seconds, aligned to MITRE ATT&CK.",
+    title: "Transparent Risk Scoring",
+    copy: "Normalized 0–100 risk scoring with evidence citation linking every finding directly to specific packets.",
+  },
+  {
+    icon: Database,
+    title: "Secure Storage & Lifecycle",
+    copy: "Private cloud object storage with per-user capture quotas, email verification guards, and self-service data deletion.",
   },
 ];
 

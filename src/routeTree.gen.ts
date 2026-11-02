@@ -22,6 +22,7 @@ import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OpsRouteImport } from './routes/ops'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -29,6 +30,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SessionExpiredRouteImport } from './routes/session-expired'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SocRouteImport } from './routes/soc'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ThreatsRouteImport } from './routes/threats'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as UploadRouteImport } from './routes/upload'
@@ -159,6 +161,11 @@ const OpsRoute = OpsRouteImport.update({
   path: '/ops',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -192,6 +199,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SocRoute = SocRouteImport.update({
   id: '/soc',
   path: '/soc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ThreatsRoute = ThreatsRouteImport.update({
@@ -530,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/ops': typeof OpsRouteWithChildren
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRouteWithChildren
@@ -537,6 +550,7 @@ export interface FileRoutesByFullPath {
   '/session-expired': typeof SessionExpiredRoute
   '/settings': typeof SettingsRoute
   '/soc': typeof SocRoute
+  '/terms': typeof TermsRoute
   '/threats': typeof ThreatsRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/upload': typeof UploadRoute
@@ -610,12 +624,14 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/session-expired': typeof SessionExpiredRoute
   '/settings': typeof SettingsRoute
   '/soc': typeof SocRoute
+  '/terms': typeof TermsRoute
   '/threats': typeof ThreatsRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/upload': typeof UploadRoute
@@ -695,6 +711,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/ops': typeof OpsRouteWithChildren
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRouteWithChildren
@@ -702,6 +719,7 @@ export interface FileRoutesById {
   '/session-expired': typeof SessionExpiredRoute
   '/settings': typeof SettingsRoute
   '/soc': typeof SocRoute
+  '/terms': typeof TermsRoute
   '/threats': typeof ThreatsRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/upload': typeof UploadRoute
@@ -783,6 +801,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notifications'
     | '/ops'
+    | '/privacy'
     | '/profile'
     | '/register'
     | '/reports'
@@ -790,6 +809,7 @@ export interface FileRouteTypes {
     | '/session-expired'
     | '/settings'
     | '/soc'
+    | '/terms'
     | '/threats'
     | '/unauthorized'
     | '/upload'
@@ -863,12 +883,14 @@ export interface FileRouteTypes {
     | '/history'
     | '/login'
     | '/notifications'
+    | '/privacy'
     | '/profile'
     | '/register'
     | '/reset-password'
     | '/session-expired'
     | '/settings'
     | '/soc'
+    | '/terms'
     | '/threats'
     | '/unauthorized'
     | '/upload'
@@ -947,6 +969,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notifications'
     | '/ops'
+    | '/privacy'
     | '/profile'
     | '/register'
     | '/reports'
@@ -954,6 +977,7 @@ export interface FileRouteTypes {
     | '/session-expired'
     | '/settings'
     | '/soc'
+    | '/terms'
     | '/threats'
     | '/unauthorized'
     | '/upload'
@@ -1034,6 +1058,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
   OpsRoute: typeof OpsRouteWithChildren
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   ReportsRoute: typeof ReportsRouteWithChildren
@@ -1041,6 +1066,7 @@ export interface RootRouteChildren {
   SessionExpiredRoute: typeof SessionExpiredRoute
   SettingsRoute: typeof SettingsRoute
   SocRoute: typeof SocRoute
+  TermsRoute: typeof TermsRoute
   ThreatsRoute: typeof ThreatsRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
   UploadRoute: typeof UploadRoute
@@ -1141,6 +1167,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -1188,6 +1221,13 @@ declare module '@tanstack/react-router' {
       path: '/soc'
       fullPath: '/soc'
       preLoaderRoute: typeof SocRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/threats': {
@@ -1845,6 +1885,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
   OpsRoute: OpsRouteWithChildren,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   ReportsRoute: ReportsRouteWithChildren,
@@ -1852,6 +1893,7 @@ const rootRouteChildren: RootRouteChildren = {
   SessionExpiredRoute: SessionExpiredRoute,
   SettingsRoute: SettingsRoute,
   SocRoute: SocRoute,
+  TermsRoute: TermsRoute,
   ThreatsRoute: ThreatsRoute,
   UnauthorizedRoute: UnauthorizedRoute,
   UploadRoute: UploadRoute,

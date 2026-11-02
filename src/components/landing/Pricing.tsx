@@ -7,47 +7,45 @@ import { Reveal, Section, SectionHeading } from "./Section";
 const tiers = [
   {
     name: "Starter",
-    price: "Contact sales",
+    price: "Free Beta",
     cadence: "",
-    blurb: "For lean teams securing a single site or product network.",
-    cta: "Talk to sales",
+    blurb: "For security analysts evaluating packet captures and inspecting detections.",
+    cta: "Get started",
     features: [
-      "Up to 50 GB of captures / month",
-      "Core detection rule set",
-      "AI threat summaries",
-      "7-day retention",
-      "Email support",
+      "Up to 500 MB per-user capture quota",
+      "13-rule deterministic threat detection engine",
+      "Interactive frame-level packet inspection",
+      "Correlated risk scoring & evidence citations",
+      "Self-service account lifecycle & data deletion",
     ],
   },
   {
     name: "Professional",
     price: "Contact sales",
     cadence: "",
-    blurb: "For growing SOCs that need continuous inspection and AI triage.",
+    blurb: "For growing security teams requiring expanded capture quotas and programmatic access.",
     cta: "Talk to sales",
     featured: true,
     features: [
-      "Up to 1 TB of captures / month",
-      "Behaviour analytics & baselines",
-      "AI chat assistant + CVE mapping",
-      "90-day retention",
-      "SIEM & SOAR integrations",
-      "24/5 priority support",
+      "Expanded multi-gigabyte capture quotas",
+      "Export findings via standard JSON REST APIs",
+      "Long-term capture retention & audit trails",
+      "SIEM webhook forwarding (planned)",
+      "Standard priority email support",
     ],
   },
   {
     name: "Enterprise",
     price: "Contact sales",
     cadence: "",
-    blurb: "For regulated, multi-region estates with bespoke controls.",
+    blurb: "For organizations requiring custom storage policies and dedicated infrastructure.",
     cta: "Talk to sales",
     features: [
-      "Unlimited throughput",
-      "On-prem or private cloud deploy",
-      "Custom detection engineering",
-      "Unlimited retention & audit logs",
-      "SSO, SCIM, RBAC & data residency",
-      "24/7 support with named TAM",
+      "Custom capture quotas and retention rules",
+      "Dedicated object storage bucket configuration",
+      "Custom detection rule authoring support",
+      "Role-based access control & workspace isolation",
+      "Dedicated support with custom SLA",
     ],
   },
 ];
@@ -58,7 +56,7 @@ export function Pricing() {
       <SectionHeading
         eyebrow="Pricing"
         title="Plans that scale with your traffic"
-        description="Every plan includes deep packet inspection, AI analysis and automated reporting. Pricing is quoted against your traffic volume."
+        description="Every plan includes deep packet inspection, automated threat detection, and comprehensive traffic analytics."
       />
 
       <div className="mt-14 grid gap-5 lg:grid-cols-3">

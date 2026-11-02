@@ -72,6 +72,12 @@ export function Footer() {
             © {new Date().getFullYear()} {COMPANY_NAME}. {APP_NAME} is a {COMPANY_NAME} product.
           </p>
           <div className="flex flex-wrap gap-6">
+            <Link to="/privacy" className="transition-colors hover:text-primary">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="transition-colors hover:text-primary">
+              Terms of Service
+            </Link>
             <Link to="/login" className="transition-colors hover:text-primary">
               Sign in
             </Link>
