@@ -1,8 +1,10 @@
 import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
+import { Siren } from "lucide-react";
 
 import { ProtectedRoute } from "@/components/auth";
-import { ErrorBoundary } from "@/components/common";
+import { ErrorBoundary, ModulePlaceholder } from "@/components/common";
 import { DashboardLayout } from "@/layouts";
+import { INCIDENT_BACKEND_READY } from "@/services/incidentService";
 import { APP_NAME } from "@/utils/constants";
 
 export const Route = createFileRoute("/incidents")({
@@ -37,6 +39,22 @@ const TABS = [
 ] as const;
 
 function IncidentsLayout() {
+  if (!INCIDENT_BACKEND_READY) {
+    return (
+      <ModulePlaceholder
+        title="Incident Response & Case Management"
+        description="Incident queue, case workflow, evidence handling, response playbooks and incident reporting."
+        icon={Siren}
+        plannedFeatures={[
+          "Collaborative case management & analyst assignment",
+          "Evidence timeline reconstruction & artifact chain-of-custody",
+          "Automated MITRE ATT&CK response playbooks",
+          "Post-incident reporting & stakeholder exports",
+        ]}
+      />
+    );
+  }
+
   return (
     <ProtectedRoute>
       <DashboardLayout>

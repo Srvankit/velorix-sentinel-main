@@ -103,6 +103,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <item.icon className="size-4 shrink-0" aria-hidden="true" />
                   {!compact && item.label}
+                  {!compact && item.badge && (
+                    <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
           </div>

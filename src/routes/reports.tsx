@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { FileBarChart, Info } from "lucide-react";
 
-import { PageHeader } from "@/components/common";
+import { ModulePlaceholder, PageHeader } from "@/components/common";
 import { GovernanceTabs } from "@/components/governance/GovernanceTabs";
 import { GOVERNANCE_BACKEND_READY } from "@/services/governanceService";
 import { APP_NAME } from "@/utils/constants";
@@ -29,6 +29,22 @@ export const Route = createFileRoute("/reports")({
 });
 
 function GovernanceLayout() {
+  if (!GOVERNANCE_BACKEND_READY) {
+    return (
+      <ModulePlaceholder
+        title="Executive Reporting & Compliance"
+        description="Governance, risk and compliance reporting for executives, security managers and auditors."
+        icon={FileBarChart}
+        plannedFeatures={[
+          "Board-ready executive security summaries & risk postures",
+          "Compliance framework mapping (ISO 27001, SOC 2, NIST CSF)",
+          "Automated scheduled PDF/HTML report exports",
+          "Enterprise risk registers & mitigation tracking",
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader

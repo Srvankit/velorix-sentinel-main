@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { Info, ShieldCheck } from "lucide-react";
 
 import { ProtectedRoute } from "@/components/auth";
 import { AdminTabs } from "@/components/admin";
-import { PageHeader } from "@/components/common";
+import { ModulePlaceholder, PageHeader } from "@/components/common";
 import { DashboardLayout } from "@/layouts";
 import { ADMIN_BACKEND_READY } from "@/services/adminService";
 import { APP_NAME } from "@/utils/constants";
@@ -31,6 +31,23 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminLayout() {
+  if (!ADMIN_BACKEND_READY) {
+    return (
+      <ModulePlaceholder
+        title="Enterprise Administration Center"
+        description="Organizations, identities, access control, policies, integrations and platform configuration."
+        icon={ShieldCheck}
+        roles={["ADMIN"]}
+        plannedFeatures={[
+          "Multi-tenant organization & workspace provisioning",
+          "Enterprise SSO, SCIM provisioning & granular RBAC policies",
+          "Comprehensive system audit trails & immutable event logging",
+          "Custom detection rule authoring & tenant-wide thresholds",
+        ]}
+      />
+    );
+  }
+
   return (
     <ProtectedRoute roles={["ADMIN"]}>
       <DashboardLayout>

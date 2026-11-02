@@ -13,7 +13,7 @@ import {
 import { useCallback, useRef, useState } from "react";
 
 import { ProtectedRoute } from "@/components/auth";
-import { ErrorBoundary, PageHeader } from "@/components/common";
+import { ErrorBoundary, ModulePlaceholder, PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
@@ -31,7 +31,7 @@ import {
 import { DashboardLayout } from "@/layouts";
 import { useSocHotkeys } from "@/hooks/useSocHotkeys";
 import { useSocResource } from "@/hooks/useSocResource";
-import { socService } from "@/services/socService";
+import { SOC_BACKEND_READY, socService } from "@/services/socService";
 import { APP_NAME } from "@/utils/constants";
 import type { SocAlert } from "@/types/soc";
 
@@ -58,6 +58,22 @@ export const Route = createFileRoute("/soc")({
 });
 
 function SocWorkspacePage() {
+  if (!SOC_BACKEND_READY) {
+    return (
+      <ModulePlaceholder
+        title="SOC Analyst Workspace"
+        description="Unified security operations console for live alert triage, investigation panels, and team productivity."
+        icon={TerminalSquare}
+        plannedFeatures={[
+          "Real-time alert triage queue & analyst productivity scoring",
+          "Multi-panel workspace layouts & analyst keyboard shortcuts",
+          "Integrated investigation scratchpads & query consoles",
+          "Cross-analyst collaborative dispatch",
+        ]}
+      />
+    );
+  }
+
   const [selected, setSelected] = useState<SocAlert | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);

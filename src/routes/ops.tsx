@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { Activity, Info } from "lucide-react";
 
 import { ProtectedRoute } from "@/components/auth";
 import { OpsTabs } from "@/components/observability";
-import { ErrorBoundary, PageHeader } from "@/components/common";
+import { ErrorBoundary, ModulePlaceholder, PageHeader } from "@/components/common";
 import { DashboardLayout } from "@/layouts";
 import { OBSERVABILITY_BACKEND_READY } from "@/services/observabilityService";
 import { APP_NAME } from "@/utils/constants";
@@ -31,6 +31,23 @@ export const Route = createFileRoute("/ops")({
 });
 
 function ObservabilityLayout() {
+  if (!OBSERVABILITY_BACKEND_READY) {
+    return (
+      <ModulePlaceholder
+        title="Platform Observability & DevSecOps Center"
+        description="Health, telemetry, logs, deployments, resilience and pipeline security for the Velorix Sentinel platform."
+        icon={Activity}
+        roles={["ADMIN"]}
+        plannedFeatures={[
+          "Container health metrics, CPU/memory telemetry & worker thread pools",
+          "Distributed system access logs & error tracing",
+          "Database query profiling & storage tier monitoring",
+          "DevSecOps pipeline health & compliance checks",
+        ]}
+      />
+    );
+  }
+
   return (
     <ProtectedRoute roles={["ADMIN"]}>
       <DashboardLayout>

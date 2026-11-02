@@ -48,6 +48,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Restrict visibility to specific roles; omit for all authenticated users. */
   roles?: UserRole[];
+  /** Optional badge label (e.g. "Beta Preview"). */
+  badge?: string;
 }
 
 export interface NavSection {
@@ -63,28 +65,35 @@ export const navigation: NavSection[] = [
       { label: "Upload", to: "/upload", icon: UploadCloud },
       { label: "Analysis", to: "/analysis", icon: Radar },
       { label: "Threats", to: "/threats", icon: ShieldAlert },
-      { label: "Incidents", to: "/incidents", icon: Siren },
-      { label: "SOC Workspace", to: "/soc", icon: TerminalSquare },
     ],
   },
   {
     label: "Intelligence",
     items: [
       { label: "Threat Intelligence", to: "/intel", icon: Crosshair },
-      { label: "AI Copilot", to: "/assistant", icon: BotMessageSquare },
       { label: "Knowledge", to: "/knowledge", icon: BookOpen },
-      { label: "Reports", to: "/reports", icon: FileBarChart },
-      { label: "History", to: "/history", icon: History },
     ],
   },
   {
     label: "Account",
     items: [
-      { label: "Notifications", to: "/notifications", icon: Bell },
-      { label: "Settings", to: "/settings", icon: Settings },
       { label: "Profile", to: "/profile", icon: UserRound },
-      { label: "Administration", to: "/admin", icon: ShieldCheck, roles: ["ADMIN"] },
-      { label: "Platform Observability", to: "/ops", icon: Activity, roles: ["ADMIN"] },
+      { label: "Settings", to: "/settings", icon: Settings },
     ],
   },
+];
+
+/**
+ * Full module registry including deferred Phase 2 modules.
+ * Preserved for future phases when backend microservices are connected.
+ */
+export const deferredNavigationItems: NavItem[] = [
+  { label: "Incidents", to: "/incidents", icon: Siren },
+  { label: "SOC Workspace", to: "/soc", icon: TerminalSquare },
+  { label: "AI Copilot", to: "/assistant", icon: BotMessageSquare },
+  { label: "Reports", to: "/reports", icon: FileBarChart },
+  { label: "History", to: "/history", icon: History },
+  { label: "Notifications", to: "/notifications", icon: Bell },
+  { label: "Administration", to: "/admin", icon: ShieldCheck, roles: ["ADMIN"] },
+  { label: "Platform Observability", to: "/ops", icon: Activity, roles: ["ADMIN"] },
 ];
