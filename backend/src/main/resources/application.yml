@@ -89,10 +89,19 @@ velorix:
     # Refresh token lifetime when the user did not tick "keep me signed in".
     short-lived-refresh-expiration: ${SHORT_LIVED_REFRESH_EXPIRATION:PT12H}
   storage:
-    # Root directory of the capture store. Swap the FileStorageService bean for S3/Azure later.
+    provider: ${VELORIX_STORAGE_PROVIDER:filesystem}
+    # Root directory of the local capture store when provider=filesystem.
     location: ${CAPTURE_STORAGE_LOCATION:./data/captures}
     max-file-size: ${CAPTURE_MAX_FILE_SIZE:100MB}
     allowed-extensions: pcap,pcapng
+    s3:
+      bucket: ${S3_BUCKET_NAME:${SUPABASE_STORAGE_BUCKET:velorix-captures}}
+      region: ${AWS_REGION:${S3_REGION:us-east-1}}
+      endpoint: ${S3_ENDPOINT:${SUPABASE_STORAGE_S3_ENDPOINT:}}
+      access-key: ${AWS_ACCESS_KEY_ID:${S3_ACCESS_KEY:}}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:${S3_SECRET_KEY:}}
+      path-style-access: ${S3_PATH_STYLE_ACCESS:true}
+      prefix: ${S3_PREFIX:captures/}
   detection:
     # Stamped onto every finding so results stay traceable to the logic that produced them.
     engine-version: ${DETECTION_ENGINE_VERSION:detect-1.0.0}

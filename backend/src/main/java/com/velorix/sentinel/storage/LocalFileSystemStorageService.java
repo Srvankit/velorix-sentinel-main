@@ -16,7 +16,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 /**
  * Local filesystem implementation of the capture store.
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Service;
  * is verified to stay inside the configured root, which makes path traversal impossible
  * even if a malicious key ever reached this layer.</p>
  */
-@Service
 public class LocalFileSystemStorageService implements FileStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalFileSystemStorageService.class);
@@ -40,7 +38,7 @@ public class LocalFileSystemStorageService implements FileStorageService {
     }
 
     @PostConstruct
-    void initialise() {
+    public void initialise() {
         try {
             root = Path.of(properties.location()).toAbsolutePath().normalize();
             Files.createDirectories(root);
