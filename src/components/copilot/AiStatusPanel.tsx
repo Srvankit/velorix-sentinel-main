@@ -49,14 +49,14 @@ export function AiStatusPanel({ className }: { className?: string }) {
         ))}
       </dl>
 
-      <div className="mt-5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
-        <p className="flex items-center gap-2 text-xs font-semibold text-primary">
-          <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-          Ready for AI Integration
+      <div className="mt-5 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+        <p className="flex items-center gap-2 text-xs font-semibold text-warning">
+          <span className="size-1.5 rounded-full bg-warning" aria-hidden="true" />
+          Experimental Preview · Roadmap Waitlist
         </p>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          The copilot interface, session store and response renderer are complete. Connect an
-          inference backend to activate answers.
+          The copilot interface and local session storage are active for client testing. Live model
+          inference (Google Gemini / OpenAI API) is scheduled for post-beta deployment.
         </p>
       </div>
     </section>

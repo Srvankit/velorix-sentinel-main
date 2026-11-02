@@ -11,7 +11,7 @@ export function CtaBanner() {
           See what your network is really saying
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-muted-foreground text-pretty">
-          Upload a capture and get a full AI threat report in under two minutes. No agents, no
+          Upload a capture and get a complete threat inspection report in under two minutes. No agents, no
           credit card.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">

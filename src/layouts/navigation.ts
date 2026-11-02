@@ -90,7 +90,7 @@ export const navigation: NavSection[] = [
 export const deferredNavigationItems: NavItem[] = [
   { label: "Incidents", to: "/incidents", icon: Siren },
   { label: "SOC Workspace", to: "/soc", icon: TerminalSquare },
-  { label: "AI Copilot", to: "/assistant", icon: BotMessageSquare },
+  { label: "AI Copilot", to: "/assistant", icon: BotMessageSquare, badge: "Experimental" },
   { label: "Reports", to: "/reports", icon: FileBarChart },
   { label: "History", to: "/history", icon: History },
   { label: "Notifications", to: "/notifications", icon: Bell },

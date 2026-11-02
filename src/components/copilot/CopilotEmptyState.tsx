@@ -19,16 +19,16 @@ export function CopilotEmptyState({ className }: { className?: string }) {
         </span>
 
         <h2 className="font-display text-xl font-semibold tracking-tight">
-          No AI conversation yet
+          AI Copilot (Experimental Preview)
         </h2>
         <p className="text-sm text-muted-foreground">
-          Start asking security questions. The copilot is designed to explain detections, summarise
-          investigations and draft SOC reporting once the inference backend is connected.
+          This conversational assistant is in experimental preview. Queries are stored locally in
+          your browser; live model reasoning (Gemini / OpenAI API) is scheduled for post-beta.
         </p>
 
         <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground">
           <ShieldQuestion className="size-3" aria-hidden="true" />
-          Questions are stored locally in this browser only
+          Stored locally in browser · No external AI API calls
         </p>
       </div>
     </div>

@@ -5,17 +5,20 @@ import { CopilotWorkspace } from "@/components/copilot";
 export const Route = createFileRoute("/assistant/")({
   head: () => ({
     meta: [
-      { title: "AI Security Copilot · Velorix Sentinel" },
+      { title: "AI Security Copilot (Experimental / Join Waitlist) · Velorix Sentinel" },
       {
         name: "description",
         content:
-          "AI-assisted investigation workspace for analysts across captures, threats and incidents.",
+          "Experimental AI-assisted investigation workspace for analysts across captures, threats and incidents (Roadmap Preview).",
       },
-      { property: "og:title", content: "AI Security Copilot · Velorix Sentinel" },
+      {
+        property: "og:title",
+        content: "AI Security Copilot (Experimental / Join Waitlist) · Velorix Sentinel",
+      },
       {
         property: "og:description",
         content:
-          "AI-assisted investigation workspace for analysts across captures, threats and incidents.",
+          "Experimental AI-assisted investigation workspace for analysts across captures, threats and incidents (Roadmap Preview).",
       },
     ],
   }),

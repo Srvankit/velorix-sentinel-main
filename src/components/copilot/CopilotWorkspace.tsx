@@ -69,12 +69,15 @@ export function CopilotWorkspace({ sessionId }: { sessionId?: string }) {
     <>
       <PageHeader
         title="AI Security Copilot"
-        description="Ask analyst-grade questions about detections, captures and security frameworks."
+        description="Experimental preview for conversational threat analysis and security framework guidance (Roadmap Preview)."
         actions={
           <>
-            <span className="hidden items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary sm:inline-flex">
-              <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
-              Ready for AI Integration
+            <span
+              data-testid="copilot-experimental-badge"
+              className="hidden items-center gap-2 rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-medium text-warning sm:inline-flex"
+            >
+              <span className="size-1.5 rounded-full bg-warning" aria-hidden="true" />
+              Experimental / Waitlist
             </span>
             {active && (
               <Button variant="outline" size="sm" onClick={() => removeSession(active.id)}>

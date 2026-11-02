@@ -175,7 +175,7 @@ export const copilotMessage = {
       notice: true,
       createdAt: nowIso(),
       content:
-        "**No AI model is connected yet.**\n\nYour question has been saved to this conversation. Velorix Sentinel will answer it as soon as the AI inference service is wired to `/api/v1/ai/chat`. Nothing was sent to a third party.",
+        "**No AI model is connected yet (Experimental / Waitlist Preview).**\n\nYour question has been saved to this local conversation. Velorix Sentinel will answer it as soon as the post-beta LLM inference service (e.g. Google Gemini / OpenAI) is deployed to `/api/v1/ai/chat`. Nothing was sent to a third party.",
     };
   },
 };

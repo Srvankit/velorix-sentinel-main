@@ -26,7 +26,7 @@ export function Screenshots() {
       <SectionHeading
         eyebrow="Inside the console"
         title="Purpose-built surfaces for every stage of an investigation"
-        description="Packet explorer, threat triage and AI reporting. Every surface renders from your own capture data — nothing here is simulated."
+        description="Packet explorer, threat triage and incident reporting. Every surface renders from your own capture data — nothing here is simulated."
       />
 
       <div className="mt-14 grid gap-6 lg:grid-cols-3">
@@ -59,7 +59,7 @@ export function Screenshots() {
         </Reveal>
 
         <Reveal delay={0.15} className="lg:col-span-3">
-          <Chrome title="ai-report">
+          <Chrome title="threat-report">
             <SkeletonText lines={4} />
           </Chrome>
         </Reveal>

@@ -5,12 +5,18 @@ import { CopilotWorkspace } from "@/components/copilot";
 export const Route = createFileRoute("/assistant/$sessionId")({
   head: () => ({
     meta: [
-      { title: "Copilot Session · Velorix Sentinel" },
-      { name: "description", content: "Continue an AI Security Copilot investigation session." },
-      { property: "og:title", content: "Copilot Session · Velorix Sentinel" },
+      { title: "Copilot Session (Experimental Preview) · Velorix Sentinel" },
+      {
+        name: "description",
+        content: "AI Security Copilot experimental session preview (Roadmap Preview).",
+      },
+      {
+        property: "og:title",
+        content: "Copilot Session (Experimental Preview) · Velorix Sentinel",
+      },
       {
         property: "og:description",
-        content: "Continue an AI Security Copilot investigation session.",
+        content: "AI Security Copilot experimental session preview (Roadmap Preview).",
       },
     ],
   }),

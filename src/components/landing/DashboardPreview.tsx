@@ -132,7 +132,7 @@ export function DashboardPreview() {
         </Panel>
 
         <Panel className="sm:col-span-3">
-          <PanelTitle icon={Bot}>AI Assistant</PanelTitle>
+          <PanelTitle icon={Bot}>AI Assistant (Roadmap)</PanelTitle>
           <div className="rounded-lg border border-border bg-elevated/60 p-3">
             <SkeletonText lines={2} />
           </div>
