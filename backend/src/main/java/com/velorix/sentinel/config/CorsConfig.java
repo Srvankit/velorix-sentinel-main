@@ -2,7 +2,6 @@ package com.velorix.sentinel.config;
 
 import com.velorix.sentinel.config.properties.CorsProperties;
 import java.util.List;
-import java.util.stream.Stream;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -10,7 +9,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * CORS policy driven by environment configuration plus the production console origin.
+ * Spring Security CORS configuration using strictly authorized exact origins.
  */
 @Configuration
 public class CorsConfig {
@@ -24,17 +23,10 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> configuredOrigins = Stream.concat(
-                        properties.allowedOrigins().stream(),
-                        Stream.of("https://velorixsentinel.netlify.app"))
-                .map(String::trim)
-                .map(origin -> origin.endsWith("/") ? origin.substring(0, origin.length() - 1) : origin)
-                .filter(origin -> !origin.isBlank())
-                .distinct()
-                .toList();
-        // Use patterns for every entry. Spring treats exact values in this list
-        // as exact matches and handles wildcard entries correctly with credentials.
-        configuration.setAllowedOriginPatterns(configuredOrigins);
+        List<String> allowedOrigins = properties.allowedOrigins();
+
+        // Exact origin matching only: wildcards and patterns are completely forbidden
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(properties.allowedMethods());
         configuration.setAllowedHeaders(properties.allowedHeaders());
         configuration.setExposedHeaders(properties.exposedHeaders());

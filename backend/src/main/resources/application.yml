@@ -134,7 +134,7 @@ velorix:
   # Configure OAuth clients through SPRING_SECURITY_OAUTH2_CLIENT_* environment variables.
   # Redirect URI for both providers: https://velorix-sentinel-backend.onrender.com/login/oauth2/code/{registrationId}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:5173,http://localhost:3000,https://velorixsentinel.netlify.app,https://*.netlify.app,https://*.lovable.app,https://*.lovableproject.com}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://velorixsentinel.netlify.app}
     allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
     allowed-headers: "*"
     exposed-headers: Authorization

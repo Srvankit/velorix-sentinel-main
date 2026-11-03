@@ -25,6 +25,11 @@ velorix:
     enabled: false
   ratelimit:
     enabled: false
+  cors:
+    allowed-origins:
+      - https://velorixsentinel.netlify.app
+      - http://localhost:5173
+      - http://localhost:3000
   security:
     jwt:
       # Test-only signing material; production reads JWT_SECRET from the environment.
