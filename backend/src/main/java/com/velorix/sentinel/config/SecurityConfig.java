@@ -92,7 +92,11 @@ public class SecurityConfig {
                                     ApiConstants.AUTH_BASE + "/change-password",
                                     ApiConstants.AUTH_BASE + "/account",
                                     ApiConstants.AUTH_BASE + "/link-oauth",
-                                    ApiConstants.AUTH_BASE + "/me").authenticated()
+                                    ApiConstants.AUTH_BASE + "/me",
+                                    ApiConstants.API_V1 + "/auth/change-password",
+                                    ApiConstants.API_V1 + "/auth/account",
+                                    ApiConstants.API_V1 + "/auth/link-oauth",
+                                    ApiConstants.API_V1 + "/auth/me").authenticated()
                             .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll();
 
                     if (isProductionProfile() && !swaggerEnabled) {

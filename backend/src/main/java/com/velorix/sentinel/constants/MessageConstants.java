@@ -13,6 +13,8 @@ public final class MessageConstants {
     public static final String INTERNAL_ERROR = "An unexpected error occurred. Please try again later";
     public static final String NOT_IMPLEMENTED = "This capability is not available yet";
     public static final String MALFORMED_REQUEST = "The request body is malformed or unreadable";
+    public static final String METHOD_NOT_ALLOWED = "The requested HTTP method is not supported for this endpoint";
+    public static final String UNSUPPORTED_MEDIA_TYPE = "The request content type is not supported";
 
     private MessageConstants() {
         throw new AssertionError("No instances allowed");
