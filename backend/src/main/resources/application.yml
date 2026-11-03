@@ -181,20 +181,31 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoint:
     health:
       show-details: when-authorized
+      roles: ADMIN
+      validate-group-membership: false
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db,diskSpace,storage,inspectionQueue
   health:
-    # Render's liveness probe must only verify that the web process is alive.
-    # Database readiness is exercised by the authenticated application paths
-    # and must not prevent the container from opening its port.
     db:
-      enabled: false
+      enabled: ${MANAGEMENT_HEALTH_DB_ENABLED:true}
     mail:
       enabled: false
 
 logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:}
   level:
     root: INFO
     com.velorix.sentinel: ${LOG_LEVEL_APP:INFO}

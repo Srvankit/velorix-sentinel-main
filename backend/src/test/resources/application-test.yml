@@ -42,8 +42,26 @@ logging:
     com.velorix.sentinel: INFO
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN
+      validate-group-membership: false
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db,diskSpace,storage,inspectionQueue
   health:
     db:
-      enabled: false
+      enabled: ${MANAGEMENT_HEALTH_DB_ENABLED:true}
     mail:
       enabled: false

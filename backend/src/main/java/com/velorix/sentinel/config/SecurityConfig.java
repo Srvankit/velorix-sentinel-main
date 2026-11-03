@@ -97,7 +97,8 @@ public class SecurityConfig {
                                     ApiConstants.API_V1 + "/auth/account",
                                     ApiConstants.API_V1 + "/auth/link-oauth",
                                     ApiConstants.API_V1 + "/auth/me").authenticated()
-                            .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll();
+                            .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll()
+                            .requestMatchers(ApiConstants.PROMETHEUS_ENDPOINT).hasRole("ADMIN");
 
                     if (isProductionProfile() && !swaggerEnabled) {
                         auth.requestMatchers(ApiConstants.SWAGGER_ENDPOINTS).denyAll();

@@ -40,6 +40,8 @@ public final class ApiConstants {
             "/swagger-ui/**"
     };
 
+    public static final String PROMETHEUS_ENDPOINT = "/actuator/prometheus";
+
     private ApiConstants() {
         throw new AssertionError("No instances allowed");
     }

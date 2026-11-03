@@ -1,11 +1,13 @@
 package com.velorix.sentinel.config;
 
 import com.velorix.sentinel.config.properties.InspectionProperties;
-import java.util.concurrent.Executor;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -27,7 +29,9 @@ public class InspectionExecutorConfig {
     private static final int SHUTDOWN_TIMEOUT_SECONDS = 60;
 
     @Bean(name = EXECUTOR_BEAN)
-    public Executor inspectionExecutor(InspectionProperties properties) {
+    public ThreadPoolTaskExecutor inspectionExecutor(
+            InspectionProperties properties,
+            ObjectProvider<MeterRegistry> meterRegistryProvider) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(properties.concurrency());
         executor.setMaxPoolSize(properties.concurrency());
@@ -39,7 +43,34 @@ public class InspectionExecutorConfig {
         executor.initialize();
         log.info("Inspection executor ready ({} workers, queue capacity {})",
                 properties.concurrency(), properties.queueCapacity());
+
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry != null) {
+            registerMetrics(executor, properties, meterRegistry);
+        }
+
         return executor;
+    }
+
+    private void registerMetrics(ThreadPoolTaskExecutor executor, InspectionProperties properties, MeterRegistry registry) {
+        Gauge.builder("inspection.executor.active", executor, ThreadPoolTaskExecutor::getActiveCount)
+                .description("Current number of active threads executing inspection tasks")
+                .register(registry);
+
+        Gauge.builder("inspection.executor.pool.size", executor, ThreadPoolTaskExecutor::getPoolSize)
+                .description("Current number of worker threads in the inspection executor pool")
+                .register(registry);
+
+        Gauge.builder("inspection.executor.queue.depth", executor, e -> {
+                    var pool = e.getThreadPoolExecutor();
+                    return pool != null ? pool.getQueue().size() : 0;
+                })
+                .description("Current number of tasks queued waiting for inspection execution")
+                .register(registry);
+
+        Gauge.builder("inspection.executor.queue.capacity", properties, InspectionProperties::queueCapacity)
+                .description("Maximum capacity of the inspection task queue")
+                .register(registry);
     }
 
     /**

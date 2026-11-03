@@ -112,6 +112,7 @@ class FileUploadIntegrationTest {
                         .file(capture("Morning-Capture.pcap", 256))
                         .header("Authorization", auth))
                 .andExpect(status().isCreated());
+        Thread.sleep(50);
         mockMvc.perform(multipart("/api/v1/files/upload")
                         .file(capture("evening.pcapng", 320))
                         .header("Authorization", auth))
