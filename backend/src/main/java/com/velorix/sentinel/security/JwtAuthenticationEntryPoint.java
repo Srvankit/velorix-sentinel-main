@@ -36,8 +36,20 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
             HttpServletResponse response,
             AuthenticationException authException) throws IOException {
 
+        String uri = request.getRequestURI();
+        if (uri != null && (uri.startsWith("/swagger-ui") || uri.startsWith("/v3/api-docs"))) {
+            log.debug("Forbidden access attempt to Swagger/OpenAPI endpoint {} from unauthenticated client", uri);
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(
+                    MessageConstants.FORBIDDEN,
+                    HttpStatus.FORBIDDEN,
+                    List.of(ApiError.of("FORBIDDEN", MessageConstants.FORBIDDEN))));
+            return;
+        }
+
         log.debug("Unauthorized request to {} {}: {}",
-                request.getMethod(), request.getRequestURI(), authException.getMessage());
+                request.getMethod(), uri, authException.getMessage());
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

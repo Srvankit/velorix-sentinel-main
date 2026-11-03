@@ -30,11 +30,14 @@ public final class ApiConstants {
             "/actuator/health/**",
             "/actuator/info",
             "/",
+            "/error"
+    };
+
+    public static final String[] SWAGGER_ENDPOINTS = {
             "/v3/api-docs",
             "/v3/api-docs/**",
             "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/error"
+            "/swagger-ui/**"
     };
 
     private ApiConstants() {

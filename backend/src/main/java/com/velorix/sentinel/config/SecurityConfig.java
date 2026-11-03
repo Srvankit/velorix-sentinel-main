@@ -26,6 +26,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.Customizer;
 
 /**
@@ -48,6 +49,12 @@ public class SecurityConfig {
     private final OAuth2LoginFailureHandler oauth2LoginFailureHandler;
     private final GitHubOAuth2UserService oauth2UserService;
     private final TrustedProxyManager trustedProxyManager;
+
+    @Value("${springdoc.swagger-ui.enabled:false}")
+    private boolean swaggerEnabled;
+
+    @Value("${spring.profiles.active:}")
+    private String activeProfiles;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -79,16 +86,24 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                ApiConstants.AUTH_BASE + "/change-password",
-                                ApiConstants.AUTH_BASE + "/account",
-                                ApiConstants.AUTH_BASE + "/link-oauth",
-                                ApiConstants.AUTH_BASE + "/me").authenticated()
-                        .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(ApiConstants.PROTECTED_PATTERN).authenticated()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers(
+                                    ApiConstants.AUTH_BASE + "/change-password",
+                                    ApiConstants.AUTH_BASE + "/account",
+                                    ApiConstants.AUTH_BASE + "/link-oauth",
+                                    ApiConstants.AUTH_BASE + "/me").authenticated()
+                            .requestMatchers(ApiConstants.PUBLIC_ENDPOINTS).permitAll();
+
+                    if (isProductionProfile() && !swaggerEnabled) {
+                        auth.requestMatchers(ApiConstants.SWAGGER_ENDPOINTS).denyAll();
+                    } else {
+                        auth.requestMatchers(ApiConstants.SWAGGER_ENDPOINTS).hasRole("ADMIN");
+                    }
+
+                    auth.requestMatchers(ApiConstants.PROTECTED_PATTERN).authenticated()
+                            .anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
         if (clientRegistrations.getIfAvailable() != null) {
@@ -116,5 +131,14 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
+    }
+
+    private boolean isProductionProfile() {
+        if (activeProfiles == null || activeProfiles.isBlank()) {
+            return false;
+        }
+        return java.util.Arrays.stream(activeProfiles.split(","))
+                .map(String::trim)
+                .anyMatch(p -> "prod".equalsIgnoreCase(p) || "production".equalsIgnoreCase(p));
     }
 }
