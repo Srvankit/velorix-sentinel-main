@@ -191,6 +191,8 @@ management:
     # and must not prevent the container from opening its port.
     db:
       enabled: false
+    mail:
+      enabled: false
 
 logging:
   level:

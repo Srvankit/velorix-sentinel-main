@@ -40,3 +40,10 @@ velorix:
 logging:
   level:
     com.velorix.sentinel: INFO
+
+management:
+  health:
+    db:
+      enabled: false
+    mail:
+      enabled: false

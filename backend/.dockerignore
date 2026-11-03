@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Build and target artifacts
+target/
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Documentation and notes
+*.md
+
+# Environment variables and secrets
+.env
+.env.*
+*.local
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+
+# OS specific files
+.DS_Store
+Thumbs.db
