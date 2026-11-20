@@ -25,7 +25,13 @@ Velorix Sentinel enforces a disciplined, reproducible, and secure dependency man
 
 ### B. Security Audits & Vulnerability Remediation
 - **Continuous Audit:** Every dependency modification must be verified with `npm audit`.
-- **Zero Critical/High Policy:** The project enforces zero critical and zero high-severity vulnerabilities in the dependency tree.
+- **Zero Critical/High Policy:** The project enforces zero critical and zero high-severity vulnerabilities across all dependency trees.
+- **Current Baseline:** Live security audits confirm **0 Critical, 0 High**, 16 Moderate, and 0 Low vulnerabilities across 1,123 total dependencies.
+- **Production vs Development Scope:** All 16 moderate findings reside exclusively within development tooling (`devDependencies`):
+  - `@netlify/vite-plugin-tanstack-start` (build/deploy bundler) and its transitive utilities (`@netlify/zip-it-and-ship-it`, `@vercel/nft`, `archiver`, `glob`, `minimatch`) due to GHSA-g3hv-75wg-m249 (minimatch glob amplification) and GHSA-3g3m-2fjr-6pw4 (glob filesystem traversal timeout).
+  - `typescript-eslint` (linter) and its sub-packages (`@typescript-eslint/parser`, `@typescript-eslint/typescript-estree`, `@typescript-eslint/eslint-plugin`) due to transitive `minimatch`.
+  - The 381 production runtime dependencies contain **0 vulnerabilities**.
+- **No Safe Automated Fix Available:** Upgrading these packages requires semver-major rewrites or downgrades (e.g. npm recommends downgrading `@netlify/vite-plugin-tanstack-start` to `1.1.0`), which would break the TanStack Start Vite build pipeline. These dev-only findings are actively tracked for upstream non-breaking patch releases.
 - **Prohibition of `--force`:** The use of `npm audit fix --force` is strictly forbidden, as it introduces unverified breaking major-version bumps across foundational dependencies.
 - **Transitive Remediation via Overrides:** When transitive dependencies have known vulnerabilities with upstream patches available, targeted resolutions must be applied via the `overrides` field in `package.json` (e.g., overriding `brace-expansion` to patched releases `^1.1.21 || ^5.0.12`).
 
@@ -34,11 +40,13 @@ Velorix Sentinel enforces a disciplined, reproducible, and secure dependency man
    - *Status:* Pinned to `3.0.260603-beta` in `devDependencies`.
    - *Architecture Boundary:* In `vite.config.ts`, `nitro: false` is explicitly configured because Netlify handles the TanStack Start SSR/runtime via `@netlify/vite-plugin-tanstack-start`. The Nitro server engine is never invoked in development or production.
    - *Upstream State:* UnJS Nitro v3 has not published a GA non-beta release; the pinned version satisfies `@lovable.dev/vite-tanstack-config` optional peer requirements with zero known security advisories.
-2. **Lovable Packages & Supply-Chain Release-Age Guard:**
-   - *24-Hour Guard:* To defend against immediate supply-chain attacks and malicious zero-day package takeovers, release-age controls (`minimumReleaseAge = 86400`) are maintained.
-   - *Zero Bypass Policy:* In `bunfig.toml`, `minimumReleaseAgeExcludes` is strictly set to `[]`. No package bypasses the 24-hour publication window. All installed `@lovable.dev/*` packages were published months prior, satisfying the safety window without requiring exceptions.
+2. **Package Manager & Supply-Chain Release-Age Guard Distinction:**
+   - *npm as Canonical Package Manager:* `npm` is the sole authoritative package manager for dependency resolution, package lifecycle scripts, and lockfile updates. `package-lock.json` (Lockfile Version 3) is the single source of truth.
+   - *Scope of `bunfig.toml` Controls:* The `bunfig.toml` configuration (`minimumReleaseAge = 86400` seconds / 24 hours, `minimumReleaseAgeExcludes = []`) strictly governs Bun package manager commands (`bun install`, `bun add`). It does **not** automatically govern `npm` installations.
+   - *npm Release-Age Support & CI Integrity:* Modern npm v11 (installed: `11.11.0`) provides a native `--min-release-age <days>` flag / `.npmrc` option (specified in whole integer days), which applies during dependency tree resolution (`npm install`). However, in production and CI/CD pipelines, supply-chain reproducibility is primarily guaranteed by `package-lock.json` via `npm ci`, which strictly enforces exact locked versions and cryptographic subresource integrity hashes (`sha512`).
+   - *Zero-Bypass Policy:* All installed `@lovable.dev/*` packages were published months prior to release, fully satisfying publication age guards. Zero bypass exceptions (`minimumReleaseAgeExcludes = []`) are permitted.
 3. **Test Runner Alignment:**
-   - Frontend unit and integration tests are authored using the high-performance Bun test runner (`bun:test`), invoked via `npm test` (`"test": "bun test"` in `package.json`). Dependencies are managed and resolved by npm, with Bun executing test files against the npm-managed `node_modules`.
+   - Frontend unit and integration tests are authored using the Bun test runner (`bun:test`) for execution speed, invoked uniformly via `npm test` (`"test": "bun test"` in `package.json`). Dependencies and types are managed by npm, with Bun executing tests against the npm-managed `node_modules`. Bun is retained exclusively as the test execution runtime, not as a package manager.
 
 ---
 
@@ -62,19 +70,20 @@ Velorix Sentinel enforces a disciplined, reproducible, and secure dependency man
   - Retaining 1.8.2 avoids untested alpha decoders while preserving 100% deterministic packet dissection across the 13 detection engine rules. Future replacement requires a dedicated migration plan to a modern pure-Java PCAP parser.
 
 ### C. OWASP Dependency-Check Integration
-- **Plugin Configuration:** Integrated via `org.owasp:dependency-check-maven` in `backend/pom.xml`.
-- **Isolated Execution Profile:** Configured under the `security-audit` profile (and `pluginManagement`) to generate both HTML and JSON reports under `target/dependency-check-reports`.
-- **Command:**
+- **Plugin Configuration:** Integrated via `org.owasp:dependency-check-maven` (version `12.1.0`) in `backend/pom.xml`.
+- **Isolated Execution Profile:** Configured under the dedicated `security-audit` profile (and `<pluginManagement>`) to generate both HTML and JSON reports under `backend/target/dependency-check-reports`.
+- **Authoritative Command:**
   ```sh
-  mvn dependency-check:check -f backend/pom.xml
-  # Or with full verification:
-  mvn verify -Psecurity-audit -f backend/pom.xml
+  mvn dependency-check:check -Psecurity-audit -f backend/pom.xml
+  # Or with an NVD API key:
+  mvn dependency-check:check -Psecurity-audit -DnvdApiKey=<YOUR_NVD_API_KEY> -f backend/pom.xml
   ```
-- **NVD API v2 Considerations:**
-  - OWASP Dependency-Check queries the National Vulnerability Database via NVD API v2.
-  - Without an NVD API key (`nvdApiKey`), NVD enforces severe rate limits (~6-second delay between pagination requests).
-  - Normal test execution (`mvn test`) deliberately excludes the dependency check plugin so daily builds and offline testing remain fast, reliable, and unblocked.
-  - In CI/CD environments, supply `NVD_API_KEY` to enable rapid automated vulnerability verification.
+- **NVD API v2 Operational Behavior & Limitations:**
+  - OWASP Dependency-Check synchronizes the National Vulnerability Database via the NVD REST API v2.
+  - **Initial Cache Build:** On the initial run, the plugin downloads the complete NVD CVE corpus (~430,000 records) into a local H2 database cache (`~/.m2/repository/org/owasp/dependency-check-data/11.0/odc.mv.db`).
+  - **Rate Limiting:** Without an NVD API key (`nvdApiKey`), the unauthenticated NVD API enforces a rolling limit of 5 requests per 30 seconds (~6 seconds between pagination chunks), requiring approximately 20–25 minutes for the initial database population.
+  - **Incremental Updates:** Once the initial cache is built, subsequent executions only download incremental updates since the last sync timestamp, completing in seconds.
+  - **Build Decoupling:** Regular test runs (`mvn test`) deliberately omit the `security-audit` profile so development testing and CI feedback loops remain instantaneous and resilient against network or rate-limiting failures.
 
 ---
 
@@ -102,8 +111,8 @@ npm run build
 # 1. Full regression test suite execution (398+ tests must pass)
 mvn test -f backend/pom.xml
 
-# 2. Security dependency check
-mvn dependency-check:check -f backend/pom.xml
+# 2. Security dependency check (requires security-audit profile)
+mvn dependency-check:check -Psecurity-audit -f backend/pom.xml
 ```
 
 ---
