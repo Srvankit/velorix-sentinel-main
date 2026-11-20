@@ -13,11 +13,17 @@ IOC extraction, risk scoring and remediation guidance.
 | --- | --- |
 | Design system & foundations | Done |
 | Marketing / landing page | Done |
-| Authentication module | Done |
-| Dashboard, packet analysis, AI chat, uploads | Not started |
+| Authentication, MFA & Account Lifecycle | Done |
+| PCAP/PCAPNG Uploads & Magic-Byte Validation | Done |
+| Streaming Deep Packet Inspection & Pure-Java Decoders | Done |
+| Automated Rule-Based Threat Detection (13 Rules) | Done |
+| Real-time Threat Intelligence Feed & Risk Badging | Done |
+| Network Analytics Dashboard & Telemetry Visualizations | Done |
+| Production Hardening (CORS, Swagger Gating, Actuator Probes) | Done |
+| Production Profile Validation & Secret Guardrails | Done |
+| AI Copilot | Preview / Experimental (Waitlist) |
 
-No fabricated metrics are rendered anywhere in the UI. Surfaces that will eventually hold
-live data render skeleton placeholders or empty states until the backend supplies values.
+No fabricated metrics are rendered anywhere in the UI. Live data surfaces display real verdicts computed by the streaming packet inspection and detection engine. Unbuilt post-beta modules are gated behind explicit preview / waitlist status.
 
 ## Frontend stack
 
@@ -86,7 +92,26 @@ npm run dev
 2. Copy `backend/.env.example`, set `JWT_SECRET` (`openssl rand -base64 64`) and the database credentials, then run `mvn spring-boot:run` from `backend/`.
 3. Run the frontend with `npm run dev`. It always calls the absolute `VITE_API_BASE_URL`; point it at `http://localhost:8081/api` only if you deliberately want the local API instead of the deployed one.
 
-Backend tests (`mvn test`) cover registration, login, `/auth/me`, refresh rotation, logout, email verification and password reset against an in-memory database.
+## Automated Test Suites
+
+- **Backend Regression Suite (`mvn test`):** 400+ unit and integration tests covering stateless JWT authentication, token rotation, account lifecycle and GDPR deletion, capture uploads, streaming packet decoding (Ethernet, IPv4, IPv6, ARP, TCP, UDP, DNS, ICMP, HTTP), the 13-rule threat detection engine, inspection pipeline bounding, rate limiting, trusted proxy evaluation, strict production CORS filtering, production Swagger gating, Actuator observability probes, and production profile secret guardrails.
+- **Frontend Test Suite (`npm test`):** 126 unit and integration tests executed with `bun:test` covering route-shell gating, AI Copilot disclosure, OAuth callback token exchange, authentication state management, and truthful status components.
+
+## Production Configuration
+
+When deploying the backend to production (e.g. Render, Kubernetes, or Docker), activate the `prod` profile:
+
+```sh
+SPRING_PROFILES_ACTIVE=prod
+```
+
+The production profile activates `application-prod.yml` and triggers `ProductionProfileValidator` during startup to verify:
+- `JWT_SECRET` is present, valid Base64, >= 64 bytes (512 bits), and not a known placeholder.
+- `SUPABASE_DB_URL` / `DB_URL` points to a remote PostgreSQL 16 instance (not localhost or H2).
+- `SUPABASE_DB_PASSWORD` / `DB_PASSWORD` is configured and not an insecure default.
+- `FRONTEND_BASE_URL` uses HTTPS and does not point to localhost.
+- `CORS_ALLOWED_ORIGINS` specifies explicit, exact production HTTPS origins (wildcards prohibited).
+- Swagger UI and OpenAPI documentation are disabled by default.
 
 ---
 

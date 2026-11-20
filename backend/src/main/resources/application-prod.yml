@@ -1,0 +1,53 @@
+# Velorix Sentinel — Production Profile Configuration
+# Activated when SPRING_PROFILES_ACTIVE=prod or --spring.profiles.active=prod
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+
+  flyway:
+    enabled: true
+    clean-disabled: true
+    validate-on-migrate: true
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN
+
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:json}
+  level:
+    root: INFO
+    com.velorix.sentinel: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: WARN
+    org.springframework.mail: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
