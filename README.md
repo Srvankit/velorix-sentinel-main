@@ -73,7 +73,7 @@ src/
 ## Development
 
 ```sh
-npm i
+npm ci
 npm run dev
 ```
 
@@ -84,7 +84,7 @@ npm run dev
 
 1. Start PostgreSQL or create a Supabase project. For Supabase, use the session-pooler JDBC URL and credentials documented in `backend/README.md`.
 2. Copy `backend/.env.example`, set `JWT_SECRET` (`openssl rand -base64 64`) and the database credentials, then run `mvn spring-boot:run` from `backend/`.
-3. Run the frontend with `bun run dev`. It always calls the absolute `VITE_API_BASE_URL`; point it at `http://localhost:8081/api` only if you deliberately want the local API instead of the deployed one.
+3. Run the frontend with `npm run dev`. It always calls the absolute `VITE_API_BASE_URL`; point it at `http://localhost:8081/api` only if you deliberately want the local API instead of the deployed one.
 
 Backend tests (`mvn test`) cover registration, login, `/auth/me`, refresh rotation, logout, email verification and password reset against an in-memory database.
 
