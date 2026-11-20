@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.velorix.sentinel.BaseIntegrationTest;
 import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.enums.Role;
 import com.velorix.sentinel.repository.ActivityLogRepository;
@@ -17,28 +18,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Verifies case-insensitive email handling across registration, authentication,
  * and Spring Data repository lookup methods.
  *
- * <p>Application-level and repository-level tests execute against the active Spring Boot
- * test context (H2 in-memory database). The direct database-level functional index test
- * is conditional via {@code Assumptions.assumeTrue} on PostgreSQL, as H2's parser does not
- * support expression indexes in {@code CREATE INDEX} DDL.
+ * <p>Executes against the real PostgreSQL 16 Testcontainers instance via BaseIntegrationTest.</p>
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class CaseInsensitiveEmailIntegrationTest {
+@DisplayName("Task 2.2 / 7.1 — Case-Insensitive Email Integration Test")
+class CaseInsensitiveEmailIntegrationTest extends BaseIntegrationTest {
 
     private static final String PASSWORD = "Str0ng!Passw0rd";
 

@@ -3,15 +3,22 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:sentinel;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: jdbc:tc:postgresql:16-alpine:///sentinel_test?TC_DAEMON=true
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: sentinel
+    password: sentinel
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    locations: classpath:db/migration
 
 velorix:
   storage:

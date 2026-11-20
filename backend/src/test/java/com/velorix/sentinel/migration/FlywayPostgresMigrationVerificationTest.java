@@ -2,7 +2,7 @@ package com.velorix.sentinel.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.Socket;
+import com.velorix.sentinel.BaseIntegrationTest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -12,41 +12,49 @@ import java.util.Map;
 import java.util.TimeZone;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class FlywayPostgresMigrationVerificationTest {
 
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5499/sentinel_test?options=-c%20timezone=UTC";
-    private static final String USER = "postgres";
-    private static final String PASS = "postgres";
+    private static String getBaseJdbcUrl() {
+        return BaseIntegrationTest.POSTGRESQL_CONTAINER.getJdbcUrl();
+    }
+
+    private static String getUser() {
+        return BaseIntegrationTest.POSTGRESQL_CONTAINER.getUsername();
+    }
+
+    private static String getPass() {
+        return BaseIntegrationTest.POSTGRESQL_CONTAINER.getPassword();
+    }
 
     @BeforeAll
     static void checkPostgreSqlAvailability() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-        boolean available = false;
-        try (Socket socket = new Socket("localhost", 5499)) {
-            available = true;
-        } catch (Exception ignored) {
-        }
-        Assumptions.assumeTrue(available, "Local disposable PostgreSQL container on port 5499 is required for this verification test");
     }
 
     @Test
     @DisplayName("Verify V1 through V12 Flyway migrations against real PostgreSQL 16")
     void testFlywayMigrationsAgainstPostgreSql() throws Exception {
-        // Clean schema if existing
-        Flyway cleanFlyway = Flyway.configure()
-                .dataSource(JDBC_URL, USER, PASS)
-                .cleanDisabled(false)
-                .load();
-        cleanFlyway.clean();
+        String baseContainerUrl = getBaseJdbcUrl();
+        String user = getUser();
+        String pass = getPass();
+
+        // Connect to maintenance database and create an isolated database for migration verification
+        String maintenanceUrl = baseContainerUrl.substring(0, baseContainerUrl.indexOf('/', baseContainerUrl.indexOf("//") + 2)) + "/postgres";
+        try (Connection conn = DriverManager.getConnection(maintenanceUrl, user, pass);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("DROP DATABASE IF EXISTS migration_verification_test WITH (FORCE);");
+            stmt.execute("CREATE DATABASE migration_verification_test;");
+        }
+
+        String isolatedDbUrl = baseContainerUrl.substring(0, baseContainerUrl.indexOf('/', baseContainerUrl.indexOf("//") + 2)) + "/migration_verification_test";
 
         // 1. Run migrations V1 through V12 in an environment without Supabase roles
         Flyway flyway = Flyway.configure()
-                .dataSource(JDBC_URL, USER, PASS)
+                .dataSource(isolatedDbUrl, user, pass)
                 .locations("classpath:db/migration")
                 .load();
 
@@ -54,7 +62,7 @@ class FlywayPostgresMigrationVerificationTest {
         assertThat(result.success).isTrue();
         assertThat(result.migrationsExecuted).isGreaterThanOrEqualTo(12);
 
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, USER, PASS);
+        try (Connection conn = DriverManager.getConnection(isolatedDbUrl, user, pass);
              Statement stmt = conn.createStatement()) {
 
             // 2. Verify table columns and types for oauth_exchange_codes (V11)
