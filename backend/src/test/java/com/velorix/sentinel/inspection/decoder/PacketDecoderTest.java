@@ -439,4 +439,165 @@ class PacketDecoderTest {
 
         return buf.array();
     }
+
+    @Test
+    @DisplayName("ARP Request packet decodes network and protocol accurately")
+    void decodesArpRequest() {
+        byte[] frameBytes = buildArpPacket((short) 1, // Opcode 1 = Request
+                new byte[]{(byte) 192, (byte) 168, 1, 10},
+                new byte[]{(byte) 192, (byte) 168, 1, 1});
+
+        CapturedFrame frame = new CapturedFrame(
+                10L, Instant.now(), frameBytes, 0, frameBytes.length, frameBytes.length, 1);
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isFalse();
+        assertThat(packet.networkProtocol()).isEqualTo(NetworkProtocol.ARP);
+        assertThat(packet.protocol()).isEqualTo(Protocol.ARP);
+        assertThat(packet.sourceIp()).isEqualTo("192.168.1.10");
+        assertThat(packet.destinationIp()).isEqualTo("192.168.1.1");
+        assertThat(packet.info()).contains("ARP REQUEST");
+    }
+
+    @Test
+    @DisplayName("ARP Reply packet decodes network and protocol accurately")
+    void decodesArpReply() {
+        byte[] frameBytes = buildArpPacket((short) 2, // Opcode 2 = Reply
+                new byte[]{(byte) 192, (byte) 168, 1, 1},
+                new byte[]{(byte) 192, (byte) 168, 1, 10});
+
+        CapturedFrame frame = new CapturedFrame(
+                11L, Instant.now(), frameBytes, 0, frameBytes.length, frameBytes.length, 1);
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isFalse();
+        assertThat(packet.networkProtocol()).isEqualTo(NetworkProtocol.ARP);
+        assertThat(packet.protocol()).isEqualTo(Protocol.ARP);
+        assertThat(packet.sourceIp()).isEqualTo("192.168.1.1");
+        assertThat(packet.destinationIp()).isEqualTo("192.168.1.10");
+        assertThat(packet.info()).contains("ARP REPLY");
+    }
+
+    @Test
+    @DisplayName("Raw IPv4 packet (link type 101) decodes without link layer header")
+    void decodesRawIpv4Packet() {
+        byte[] ipBytes = buildRawIpv4Tcp();
+        CapturedFrame frame = new CapturedFrame(
+                12L, Instant.now(), ipBytes, 0, ipBytes.length, ipBytes.length, 101); // LinkType RAW
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isFalse();
+        assertThat(packet.networkProtocol()).isEqualTo(NetworkProtocol.IPV4);
+        assertThat(packet.sourceIp()).isEqualTo("10.0.0.1");
+        assertThat(packet.destinationIp()).isEqualTo("10.0.0.2");
+        assertThat(packet.destinationPort()).isEqualTo(80);
+    }
+
+    @Test
+    @DisplayName("Linux SLL cooked capture (link type 113) decodes network layer")
+    void decodesLinuxSllPacket() {
+        byte[] sllBytes = buildLinuxSllPacket();
+        CapturedFrame frame = new CapturedFrame(
+                13L, Instant.now(), sllBytes, 0, sllBytes.length, sllBytes.length, 113); // LinkType LINUX_SLL
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isFalse();
+        assertThat(packet.networkProtocol()).isEqualTo(NetworkProtocol.IPV4);
+        assertThat(packet.sourceIp()).isEqualTo("10.0.0.1");
+        assertThat(packet.destinationIp()).isEqualTo("10.0.0.2");
+    }
+
+    @Test
+    @DisplayName("Unsupported link layer type marks packet as malformed with reason")
+    void unsupportedLinkTypeMarksMalformed() {
+        byte[] dummy = new byte[]{1, 2, 3, 4, 5, 6};
+        CapturedFrame frame = new CapturedFrame(
+                14L, Instant.now(), dummy, 0, dummy.length, dummy.length, 999);
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isTrue();
+        assertThat(packet.info()).contains("Unsupported link layer type 999");
+    }
+
+    @Test
+    @DisplayName("Truncated raw frame produces malformed packet without throwing exception")
+    void truncatedRawFrameMarksMalformedWithoutThrowing() {
+        byte[] truncated = new byte[]{0x00, 0x11, 0x22}; // truncated ethernet header
+        CapturedFrame frame = new CapturedFrame(
+                15L, Instant.now(), truncated, 0, truncated.length, truncated.length, 1);
+
+        DecodedPacket packet = decoder.decode(frame);
+
+        assertThat(packet.malformed()).isTrue();
+        assertThat(packet.info()).contains("Malformed frame");
+    }
+
+    private byte[] buildArpPacket(short opcode, byte[] srcIp, byte[] dstIp) {
+        ByteBuffer buf = ByteBuffer.allocate(14 + 28);
+
+        // Ethernet
+        buf.put(new byte[]{(byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff});
+        buf.put(new byte[]{0x66, 0x77, (byte) 0x88, (byte) 0x99, (byte) 0xaa, (byte) 0xbb});
+        buf.putShort((short) 0x0806); // ARP
+
+        // ARP
+        buf.putShort((short) 1);      // HW: Ethernet
+        buf.putShort((short) 0x0800); // Proto: IPv4
+        buf.put((byte) 6);            // HW size
+        buf.put((byte) 4);            // Proto size
+        buf.putShort(opcode);         // Opcode (1=req, 2=reply)
+        buf.put(new byte[]{0x66, 0x77, (byte) 0x88, (byte) 0x99, (byte) 0xaa, (byte) 0xbb});
+        buf.put(srcIp);
+        buf.put(new byte[]{0, 0, 0, 0, 0, 0});
+        buf.put(dstIp);
+
+        return buf.array();
+    }
+
+    private byte[] buildRawIpv4Tcp() {
+        ByteBuffer buf = ByteBuffer.allocate(40);
+        buf.put((byte) 0x45);
+        buf.put((byte) 0x00);
+        buf.putShort((short) 40);
+        buf.putShort((short) 0x1111);
+        buf.putShort((short) 0x4000);
+        buf.put((byte) 64);
+        buf.put((byte) 6); // TCP
+        buf.putShort((short) 0);
+        buf.put(new byte[]{10, 0, 0, 1});
+        buf.put(new byte[]{10, 0, 0, 2});
+
+        // TCP
+        buf.putShort((short) 50000);
+        buf.putShort((short) 80);
+        buf.putInt(1);
+        buf.putInt(0);
+        buf.putShort((short) 0x5002);
+        buf.putShort((short) 8192);
+        buf.putShort((short) 0);
+        buf.putShort((short) 0);
+
+        return buf.array();
+    }
+
+    private byte[] buildLinuxSllPacket() {
+        byte[] ipTcp = buildRawIpv4Tcp();
+        ByteBuffer buf = ByteBuffer.allocate(16 + ipTcp.length);
+
+        // 16-byte Linux SLL Header
+        buf.putShort((short) 0); // packet type
+        buf.putShort((short) 1); // ARPHRD
+        buf.putShort((short) 6); // address len
+        buf.put(new byte[]{0, 0, 0, 0, 0, 0, 0, 0}); // address
+        buf.putShort((short) 0x0800); // protocol IPv4
+
+        buf.put(ipTcp);
+
+        return buf.array();
+    }
 }

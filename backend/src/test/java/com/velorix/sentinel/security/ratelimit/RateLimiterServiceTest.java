@@ -192,5 +192,46 @@ class RateLimiterServiceTest {
         shortService.reset();
         assertThat(shortService.getBucketCount()).isZero();
     }
+
+    @Test
+    @DisplayName("Rejects requests when bucket capacity is completely saturated")
+    void rejectsWhenBucketCapacitySaturated() {
+        RateLimitProperties capProps = new RateLimitProperties(
+                true,
+                5, Duration.ofMinutes(1),
+                10, Duration.ofMinutes(1),
+                3, Duration.ofMinutes(1),
+                3, Duration.ofMinutes(1),
+                10, Duration.ofMinutes(1),
+                120, Duration.ofMinutes(1),
+                2 // Max 2 buckets
+        );
+        RateLimiterService capService = new RateLimiterService(capProps);
+
+        // Fill 2 buckets
+        capService.tryConsume(RateLimitTier.LOGIN_IP, "key-1");
+        capService.tryConsume(RateLimitTier.LOGIN_IP, "key-2");
+        assertThat(capService.getBucketCount()).isEqualTo(2);
+
+        // Third bucket cannot be added because maxBuckets is 2 and buckets are not idle
+        RateLimitResult saturated = capService.tryConsume(RateLimitTier.LOGIN_IP, "key-3");
+        assertThat(saturated.allowed()).isFalse();
+        assertThat(saturated.retryAfterSeconds()).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("Null parameters in rate limit consumption fallback to default keys safely")
+    void nullParametersFallbackSafely() {
+        // Null email in forgot password
+        RateLimitResult forgotRes = rateLimiterService.tryConsumeForgotPassword("1.2.3.4", null);
+        assertThat(forgotRes.allowed()).isTrue();
+
+        // Null userOrIp in upload and general API
+        RateLimitResult uploadRes = rateLimiterService.tryConsumeFileUpload(null);
+        assertThat(uploadRes.allowed()).isTrue();
+
+        RateLimitResult generalRes = rateLimiterService.tryConsumeGeneralApi(null);
+        assertThat(generalRes.allowed()).isTrue();
+    }
 }
 
