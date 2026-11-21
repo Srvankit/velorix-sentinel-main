@@ -56,7 +56,7 @@ export function AnalysisOverviewPanel({
     : "—";
 
   const riskHint = isDetectionComplete
-    ? summary!.overallStatus.toLowerCase().replace(/_/g, " ")
+    ? (summary?.overallStatus ? summary.overallStatus.toLowerCase().replace(/_/g, " ") : "verdict pending")
     : analysis.status === "FAILED"
       ? "Inspection failed"
       : analysis.status === "PROCESSING"

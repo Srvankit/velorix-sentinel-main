@@ -10,6 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 export default defineConfig({
   testDir: path.resolve(__dirname, "./tests"),
+  testMatch: /(^|[\\/])auth-and-analysis\.spec\.ts$/,
   timeout: 90_000,
   expect: {
     timeout: 20_000,

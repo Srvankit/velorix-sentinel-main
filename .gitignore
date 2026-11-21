@@ -55,5 +55,9 @@ backend/.idea/
 # Playwright
 test-results/
 playwright-report/
+playwright-report-real/
 blob-report/
 playwright/.cache/
+
+# Local upload capture storage
+data/

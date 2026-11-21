@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RefreshCw, ShieldAlert } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 
+import { ProtectedRoute } from "@/components/auth";
 import { ErrorState, SkeletonChart } from "@/components/common";
 import { PageHeader } from "@/components/common";
 import {
@@ -17,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDetectionRules, useThreatStats, useThreats } from "@/hooks/useThreats";
+import { DashboardLayout } from "@/layouts";
 import type { Threat } from "@/types/threats";
 import { APP_NAME } from "@/utils/constants";
 
@@ -49,6 +51,16 @@ export const Route = createFileRoute("/threats")({
 const FEED_QUERY = { page: 0, size: 200, sort: "detectedAt", direction: "DESC" } as const;
 
 function ThreatsPage() {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        <ThreatsWorkspace />
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+}
+
+function ThreatsWorkspace() {
   const statsQuery = useThreatStats();
   const feedQuery = useThreats(FEED_QUERY);
   const rulesQuery = useDetectionRules();

@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping({ApiConstants.AUTH_BASE + "/test", ApiConstants.API_V1 + "/auth/test"})
-@Profile({"test", "dev", "e2e"})
+@Profile({"test", "e2e"})
 @Hidden
 public class TestSupportController {
 
