@@ -32,11 +32,8 @@ export function useUploadQueue(onUploaded: () => void) {
   const itemsRef = useRef<UploadQueueItem[]>([]);
 
   const update = useCallback((id: string, patch: Partial<UploadQueueItem>) => {
-    setItems((current) => {
-      const next = current.map((item) => (item.id === id ? { ...item, ...patch } : item));
-      itemsRef.current = next;
-      return next;
-    });
+    itemsRef.current = itemsRef.current.map((item) => (item.id === id ? { ...item, ...patch } : item));
+    setItems([...itemsRef.current]);
   }, []);
 
   const drain = useCallback(async () => {
@@ -81,11 +78,8 @@ export function useUploadQueue(onUploaded: () => void) {
         };
       });
 
-      setItems((current) => {
-        const next = [...created, ...current];
-        itemsRef.current = next;
-        return next;
-      });
+      itemsRef.current = [...created, ...itemsRef.current];
+      setItems([...itemsRef.current]);
 
       queue.current.push(...created.filter((item) => item.state === "pending").map((i) => i.id));
       void drain();
@@ -109,11 +103,8 @@ export function useUploadQueue(onUploaded: () => void) {
 
   const dismiss = useCallback((id: string) => {
     queue.current = queue.current.filter((queued) => queued !== id);
-    setItems((current) => {
-      const next = current.filter((item) => item.id !== id);
-      itemsRef.current = next;
-      return next;
-    });
+    itemsRef.current = itemsRef.current.filter((item) => item.id !== id);
+    setItems([...itemsRef.current]);
   }, []);
 
   const clearCompleted = useCallback(() => {

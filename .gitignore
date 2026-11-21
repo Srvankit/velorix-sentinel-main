@@ -48,3 +48,12 @@ backend/.idea/
 
 # Lovable tooling metadata
 .lovable/
+
+# Local database data
+.pgdata/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
