@@ -29,7 +29,7 @@ export const registerSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),
     acceptTerms: z.literal(true, {
-      errorMap: () => ({ message: "You must accept the terms to continue" }),
+      message: "You must accept the terms to continue",
     }),
   })
   .refine((values) => values.password === values.confirmPassword, {

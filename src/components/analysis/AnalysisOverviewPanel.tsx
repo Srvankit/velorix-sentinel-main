@@ -41,9 +41,7 @@ export function AnalysisOverviewPanel({
 
   const isDetectionComplete = analysis.status === "COMPLETED" && Boolean(summary);
 
-  const maliciousValue = isDetectionComplete
-    ? formatNumber(analysis.maliciousPackets)
-    : "—";
+  const maliciousValue = isDetectionComplete ? formatNumber(analysis.maliciousPackets) : "—";
 
   const maliciousHint = isDetectionComplete
     ? `${formatNumber(analysis.safePackets)} clean frames`
@@ -51,21 +49,19 @@ export function AnalysisOverviewPanel({
       ? "Inspection failed"
       : "Awaiting scan";
 
-  const riskValue = isDetectionComplete
-    ? `${summary!.riskScore}/100`
-    : "—";
+  const riskValue = isDetectionComplete ? `${summary!.riskScore}/100` : "—";
 
   const riskHint = isDetectionComplete
-    ? (summary?.overallStatus ? summary.overallStatus.toLowerCase().replace(/_/g, " ") : "verdict pending")
+    ? summary?.overallStatus
+      ? summary.overallStatus.toLowerCase().replace(/_/g, " ")
+      : "verdict pending"
     : analysis.status === "FAILED"
       ? "Inspection failed"
       : analysis.status === "PROCESSING"
         ? "Scanning in progress…"
         : "Awaiting scan";
 
-  const threatsValue = isDetectionComplete
-    ? formatNumber(summary!.totalThreats)
-    : "—";
+  const threatsValue = isDetectionComplete ? formatNumber(summary!.totalThreats) : "—";
 
   const threatsHint = isDetectionComplete
     ? `${formatNumber(summary!.criticalThreats)} critical · ${formatNumber(summary!.highThreats)} high`
@@ -83,7 +79,9 @@ export function AnalysisOverviewPanel({
           className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200"
         >
           <AlertTriangle className="size-5 shrink-0 text-amber-400" aria-hidden="true" />
-          <span>Capture truncated: analysis used all valid frames available before the file ended.</span>
+          <span>
+            Capture truncated: analysis used all valid frames available before the file ended.
+          </span>
         </div>
       )}
 
@@ -128,12 +126,7 @@ export function AnalysisOverviewPanel({
           hint={maliciousHint}
           icon={ShieldAlert}
         />
-        <StatTile
-          label="Risk score"
-          value={riskValue}
-          hint={riskHint}
-          icon={Gauge}
-        />
+        <StatTile label="Risk score" value={riskValue} hint={riskHint} icon={Gauge} />
         <StatTile
           label="Threats detected"
           value={threatsValue}

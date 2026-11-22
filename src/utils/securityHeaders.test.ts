@@ -79,9 +79,12 @@ describe("Frontend Netlify Security Headers & CSP (Task 5.4, H8)", () => {
 
   describe("HSTS (HTTP Strict Transport Security)", () => {
     test("HSTS specifies max-age of at least 1 year (31536000), includeSubDomains, and preload", () => {
-      const expectedHsts = "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      const expectedHsts =
+        "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
       expect(headersContent).toContain(expectedHsts);
-      expect(tomlContent).toContain('Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"');
+      expect(tomlContent).toContain(
+        'Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"',
+      );
     });
   });
 
@@ -89,7 +92,9 @@ describe("Frontend Netlify Security Headers & CSP (Task 5.4, H8)", () => {
     test("disables high-risk device APIs (camera, microphone, geolocation)", () => {
       const expectedPolicy = "Permissions-Policy: camera=(), microphone=(), geolocation=()";
       expect(headersContent).toContain(expectedPolicy);
-      expect(tomlContent).toContain('Permissions-Policy = "camera=(), microphone=(), geolocation=()"');
+      expect(tomlContent).toContain(
+        'Permissions-Policy = "camera=(), microphone=(), geolocation=()"',
+      );
     });
   });
 
@@ -105,8 +110,12 @@ describe("Frontend Netlify Security Headers & CSP (Task 5.4, H8)", () => {
     });
 
     test("allows Google Fonts in style-src and font-src", () => {
-      expect(headersContent).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
-      expect(tomlContent).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
+      expect(headersContent).toContain(
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      );
+      expect(tomlContent).toContain(
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      );
       expect(headersContent).toContain("font-src 'self' https://fonts.gstatic.com");
       expect(tomlContent).toContain("font-src 'self' https://fonts.gstatic.com");
     });
@@ -117,9 +126,12 @@ describe("Frontend Netlify Security Headers & CSP (Task 5.4, H8)", () => {
     });
 
     test("allowlists backend on Render and Supabase in connect-src", () => {
-      expect(headersContent).toContain("connect-src 'self' https://velorix-sentinel-backend.onrender.com https://*.supabase.co");
-      expect(tomlContent).toContain("connect-src 'self' https://velorix-sentinel-backend.onrender.com https://*.supabase.co");
+      expect(headersContent).toContain(
+        "connect-src 'self' https://velorix-sentinel-backend.onrender.com https://*.supabase.co",
+      );
+      expect(tomlContent).toContain(
+        "connect-src 'self' https://velorix-sentinel-backend.onrender.com https://*.supabase.co",
+      );
     });
   });
 });
-

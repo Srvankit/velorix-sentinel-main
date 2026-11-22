@@ -14,7 +14,10 @@ function createMockWebLocks() {
   return {
     request: mock(async (name: string, options: unknown, callback?: () => Promise<unknown>) => {
       const task = typeof options === "function" ? (options as () => Promise<unknown>) : callback!;
-      const opts = typeof options === "object" && options !== null ? (options as { signal?: AbortSignal }) : {};
+      const opts =
+        typeof options === "object" && options !== null
+          ? (options as { signal?: AbortSignal })
+          : {};
 
       if (opts.signal?.aborted) {
         throw new DOMException("The operation was aborted.", "AbortError");
@@ -152,7 +155,7 @@ describe("Cross-Tab Refresh Coordination (Task 3.6)", () => {
 
     const runTabRefresh = async (
       tabSessionRef: { current: AuthSession | null },
-      setTabSession: (next: AuthSession) => void
+      setTabSession: (next: AuthSession) => void,
     ): Promise<string | null> => {
       const triggeringToken = tabSessionRef.current?.refreshToken;
       if (!triggeringToken) return null;
@@ -282,7 +285,9 @@ describe("Cross-Tab Refresh Coordination (Task 3.6)", () => {
       }
 
       expect(caughtError).toBeInstanceOf(CrossTabLockUnavailableError);
-      expect((caughtError as Error).message).toContain("Web Locks API is required to guarantee safe token rotation");
+      expect((caughtError as Error).message).toContain(
+        "Web Locks API is required to guarantee safe token rotation",
+      );
 
       // Existing session in storage MUST be preserved!
       const currentSession = storage.get<AuthSession>(STORAGE_KEYS.session);
@@ -297,25 +302,21 @@ describe("Cross-Tab Refresh Coordination (Task 3.6)", () => {
   // 7. Timeout handling: Throws CrossTabLockTimeoutError when lock cannot be acquired within timeout
   test("7: Timeout handling: Throws CrossTabLockTimeoutError on acquisition timeout", async () => {
     // Hold lock indefinitely
-    const neverEndingTask = withCrossTabLock(
-      "timeout_lock",
-      () => new Promise(() => {}),
-      { timeoutMs: 5000 }
-    );
+    const _neverEndingTask = withCrossTabLock("timeout_lock", () => new Promise(() => {}), {
+      timeoutMs: 5000,
+    });
 
     let caughtError: unknown = null;
     try {
       // Attempt with very short 50ms timeout
-      await withCrossTabLock(
-        "timeout_lock",
-        async () => "should-timeout",
-        { timeoutMs: 50 }
-      );
+      await withCrossTabLock("timeout_lock", async () => "should-timeout", { timeoutMs: 50 });
     } catch (err) {
       caughtError = err;
     }
 
     expect(caughtError).toBeInstanceOf(CrossTabLockTimeoutError);
-    expect((caughtError as Error).message).toContain("Failed to acquire cross-tab lock 'timeout_lock'");
+    expect((caughtError as Error).message).toContain(
+      "Failed to acquire cross-tab lock 'timeout_lock'",
+    );
   });
 });

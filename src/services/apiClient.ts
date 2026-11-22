@@ -98,7 +98,10 @@ export function toApiError(error: unknown): ApiError {
     }
 
     const unreachable =
-      status === 0 || status === 502 || status === 503 || status === 504 ||
+      status === 0 ||
+      status === 502 ||
+      status === 503 ||
+      status === 504 ||
       (!reachedApi && (status === 404 || status >= 500));
 
     return {

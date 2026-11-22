@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { resolveApiConfig, isLocalHostname, detectRemoteHost } from "./apiConfig";
+import { resolveApiConfig, isLocalHostname } from "./apiConfig";
 
 describe("Explicit Environment Configuration & Fallback Removal (Task 5.5, L4)", () => {
   const rootDir = path.resolve(__dirname, "../..");
@@ -47,9 +47,13 @@ describe("Explicit Environment Configuration & Fallback Removal (Task 5.5, L4)",
 
     test("apiConfig.ts contains zero silent production fallback strings", () => {
       // Must not define DEFAULT_API_BASE_URL pointing to onrender.com
-      expect(apiConfigSource).not.toContain('DEFAULT_API_BASE_URL = "https://velorix-sentinel-backend.onrender.com/api"');
+      expect(apiConfigSource).not.toContain(
+        'DEFAULT_API_BASE_URL = "https://velorix-sentinel-backend.onrender.com/api"',
+      );
       // resolveApiConfig must not assign a default production host
-      expect(apiConfigSource).not.toMatch(/baseUrl:\s*["']https:\/\/velorix-sentinel-backend\.onrender\.com/);
+      expect(apiConfigSource).not.toMatch(
+        /baseUrl:\s*["']https:\/\/velorix-sentinel-backend\.onrender\.com/,
+      );
     });
   });
 
@@ -131,4 +135,3 @@ describe("Explicit Environment Configuration & Fallback Removal (Task 5.5, L4)",
     });
   });
 });
-

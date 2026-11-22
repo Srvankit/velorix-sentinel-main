@@ -56,7 +56,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
 
     // Assert navigation to verify-email route
     await page.waitForURL(/\/verify-email/i, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Check your inbox/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Check your inbox/i })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(testEmail)).toBeVisible();
 
     // ------------------------------------------------------------------------
@@ -71,7 +73,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     await expect(page.getByRole("heading", { name: /Your email is verified/i })).toBeVisible({
       timeout: 15_000,
     });
-    const continueToSignInBtn = page.getByRole("link", { name: /Continue to sign in|Go to sign in/i });
+    const continueToSignInBtn = page.getByRole("link", {
+      name: /Continue to sign in|Go to sign in/i,
+    });
     await expect(continueToSignInBtn).toBeVisible();
 
     // Click continue to sign in
@@ -95,7 +99,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
 
     // Assert redirection to dashboard
     await page.waitForURL(/\/dashboard/i, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Security operations center/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Security operations center/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // ------------------------------------------------------------------------
     // Step 4: JWT Token Storage & Authenticated Session Verification
@@ -114,7 +120,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     // ------------------------------------------------------------------------
     await page.getByRole("link", { name: "Upload", exact: true }).click();
     await page.waitForURL(/\/upload/i, { timeout: 15_000 });
-    await expect(page.getByText(/Drop packet captures here|Capture uploads/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/Drop packet captures here|Capture uploads/i).first(),
+    ).toBeVisible();
 
     // Upload clean_traffic.pcap via file input
     const fileInput = page.locator('input[type="file"]');
@@ -145,7 +153,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     // ------------------------------------------------------------------------
     await page.getByRole("link", { name: "Upload", exact: true }).click();
     await page.waitForURL(/\/upload/i, { timeout: 15_000 });
-    await expect(page.getByText(/Drop packet captures here|Capture uploads/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/Drop packet captures here|Capture uploads/i).first(),
+    ).toBeVisible();
 
     // Upload port_scan.pcap via file input
     await fileInput.setInputFiles(portScanCapturePath);
@@ -166,7 +176,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     // Navigate to Threats view via navigation link
     await page.getByRole("link", { name: "Threats", exact: true }).click();
     await page.waitForURL(/\/threats/i, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Threat detection/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Threat detection/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Verify Port Scan threat finding in table
     const portScanThreat = page.locator("tr", { hasText: /Port Scan|SYN/i }).first();
@@ -179,7 +191,9 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     // Verify Threat Detail Drawer displays detection information
     const drawer = page.locator('[role="dialog"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });
-    await expect(drawer.getByText(/Port Scan|Network Service Discovery|T1046/i).first()).toBeVisible();
+    await expect(
+      drawer.getByText(/Port Scan|Network Service Discovery|T1046/i).first(),
+    ).toBeVisible();
 
     // Close drawer using Escape
     await page.keyboard.press("Escape");
@@ -190,16 +204,26 @@ test.describe("Velorix Sentinel — Critical Path E2E Smoke Test", () => {
     // ------------------------------------------------------------------------
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await page.waitForURL(/\/dashboard/i, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Security operations center/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Security operations center/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Verify Executive Overview KPI cards & security posture
-    await expect(page.getByRole("heading", { name: /Executive security overview/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Executive security overview/i })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(/Threats detected/i).first()).toBeVisible({ timeout: 15_000 });
 
     // Verify Dashboard Charts rendered (Threat trend, Protocol distribution, Packet volume)
-    await expect(page.getByRole("heading", { name: /Threat trend/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Protocol distribution/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Packet volume timeline/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Threat trend/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("heading", { name: /Protocol distribution/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("heading", { name: /Packet volume timeline/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // ------------------------------------------------------------------------
     // Step 9: User Logout & Route Guard Verification

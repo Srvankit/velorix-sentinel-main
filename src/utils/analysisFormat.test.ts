@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { formatBitrate, formatDuration, formatEndpoint, isTruncatedCaptureWarningVisible } from "./analysisFormat";
+import {
+  formatBitrate,
+  formatDuration,
+  formatEndpoint,
+  isTruncatedCaptureWarningVisible,
+} from "./analysisFormat";
 
 describe("Truncated Capture Warning Visibility (Task 1.4)", () => {
   test("Warning is visible when capture is completed and marked truncated", () => {

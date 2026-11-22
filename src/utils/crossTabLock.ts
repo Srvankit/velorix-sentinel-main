@@ -21,7 +21,7 @@ export class CrossTabLockError extends Error {
 
 export class CrossTabLockUnavailableError extends CrossTabLockError {
   constructor(
-    message = "Cross-tab lock unavailable: Web Locks API is required to guarantee safe token rotation."
+    message = "Cross-tab lock unavailable: Web Locks API is required to guarantee safe token rotation.",
   ) {
     super(message);
     this.name = "CrossTabLockUnavailableError";
@@ -53,7 +53,7 @@ export const isWebLocksSupported = (): boolean =>
 export async function withCrossTabLock<T>(
   lockName: string,
   task: () => Promise<T>,
-  options: CrossTabLockOptions = {}
+  options: CrossTabLockOptions = {},
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
@@ -65,17 +65,13 @@ export async function withCrossTabLock<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await navigator.locks.request(
-      lockName,
-      { signal: controller.signal },
-      async () => {
-        return await task();
-      }
-    );
+    return await navigator.locks.request(lockName, { signal: controller.signal }, async () => {
+      return await task();
+    });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new CrossTabLockTimeoutError(
-        `Failed to acquire cross-tab lock '${lockName}' within ${timeoutMs}ms.`
+        `Failed to acquire cross-tab lock '${lockName}' within ${timeoutMs}ms.`,
       );
     }
     throw error;

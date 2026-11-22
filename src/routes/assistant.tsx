@@ -82,7 +82,8 @@ function AssistantLayout() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   No live LLM model (e.g. Gemini / OpenAI API) is connected during this public beta.
-                  Prompts are stored locally in browser storage for interface testing. Join the waitlist for priority access to AI-assisted threat triage.
+                  Prompts are stored locally in browser storage for interface testing. Join the
+                  waitlist for priority access to AI-assisted threat triage.
                 </p>
               </div>
             </div>

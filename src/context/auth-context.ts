@@ -10,7 +10,7 @@ export interface AuthContextValue {
   isInitializing: boolean;
   /** Set when the backend rejected the stored token and it could not be renewed. */
   sessionExpired: boolean;
-  login: (payload: LoginRequest) => Promise<AuthUser>;
+  login: (payload: LoginRequest) => Promise<AuthUser | null>;
   /** Submits account registration and dispatches a verification email. */
   register: (payload: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;

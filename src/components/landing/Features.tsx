@@ -1,4 +1,13 @@
-import { Database, FileBarChart, Fingerprint, Gauge, Network, Radar, ShieldAlert, Waves } from "lucide-react";
+import {
+  Database,
+  FileBarChart,
+  Fingerprint,
+  Gauge,
+  Network,
+  Radar,
+  ShieldAlert,
+  Waves,
+} from "lucide-react";
 
 import { Reveal, Section, SectionHeading } from "./Section";
 

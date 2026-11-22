@@ -74,6 +74,10 @@ function SocWorkspacePage() {
     );
   }
 
+  return <ActiveSocWorkspace />;
+}
+
+function ActiveSocWorkspace() {
   const [selected, setSelected] = useState<SocAlert | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);

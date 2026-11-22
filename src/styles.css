@@ -144,12 +144,9 @@
     oklch(0.577 0.245 27.3) 0%,
     oklch(0.637 0.237 25.3) 100%
   );
-  --gradient-surface: linear-gradient(
-    160deg,
-    oklch(0.99 0 0 / 7%) 0%,
-    oklch(0.99 0 0 / 2%) 100%
-  );
-  --glow-primary: 0 0 0 1px oklch(0.577 0.245 27.3 / 30%), 0 18px 50px -18px oklch(0.637 0.237 25.3 / 55%);
+  --gradient-surface: linear-gradient(160deg, oklch(0.99 0 0 / 7%) 0%, oklch(0.99 0 0 / 2%) 100%);
+  --glow-primary:
+    0 0 0 1px oklch(0.577 0.245 27.3 / 30%), 0 18px 50px -18px oklch(0.637 0.237 25.3 / 55%);
   --shadow-panel: 0 1px 0 0 oklch(0.99 0 0 / 6%) inset, 0 24px 60px -30px oklch(0 0 0 / 80%);
   --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -216,7 +213,11 @@
     radial-gradient(circle at 85% 10%, oklch(0.637 0.237 25.3 / 12%), transparent 45%),
     linear-gradient(oklch(0.99 0 0 / 3%) 1px, transparent 1px),
     linear-gradient(90deg, oklch(0.99 0 0 / 3%) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 56px 56px, 56px 56px;
+  background-size:
+    100% 100%,
+    100% 100%,
+    56px 56px,
+    56px 56px;
 }
 
 @utility focus-ring {
@@ -232,7 +233,10 @@
 }
 
 @utility hover-glow {
-  transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+  transition:
+    box-shadow var(--transition-base),
+    transform var(--transition-base),
+    border-color var(--transition-base);
   &:hover {
     box-shadow: var(--glow-primary);
     border-color: oklch(0.577 0.245 27.3 / 45%);

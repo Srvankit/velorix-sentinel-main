@@ -30,7 +30,7 @@ export function formatEndpoint(ip: string, port: number | null | undefined): str
  */
 export function isTruncatedCaptureWarningVisible(
   status: string | undefined,
-  truncated: boolean | undefined
+  truncated: boolean | undefined,
 ): boolean {
   return status === "COMPLETED" && Boolean(truncated);
 }

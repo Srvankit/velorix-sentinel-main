@@ -71,9 +71,10 @@ describe("OAuth callback race condition resolution (Task 3.4)", () => {
     expect(clearSession).not.toHaveBeenCalled();
 
     // Verify final session state has both tokens and user profile
-    expect(currentSession).not.toBeNull();
-    expect(currentSession?.accessToken).toBe("test-oauth-access-token");
-    expect(currentSession?.user).toEqual(sampleUser);
+    const finalSession = currentSession as AuthSession | null;
+    expect(finalSession).not.toBeNull();
+    expect(finalSession?.accessToken).toBe("test-oauth-access-token");
+    expect(finalSession?.user).toEqual(sampleUser);
   });
 
   test("unfixed implementation (race condition) fails with 401 because token is not yet in session", async () => {
@@ -192,7 +193,7 @@ describe("OAuth One-Time Code Exchange (Task 3.5)", () => {
   });
 
   test("handles exchange rejection (expired or replayed code) by redirecting to login", async () => {
-    const exchangeOAuthCode = mock(async () => {
+    const exchangeOAuthCode = mock(async (_params?: { code: string }) => {
       throw new Error("401 Unauthorized: Invalid or expired OAuth exchange code");
     });
 
@@ -210,7 +211,7 @@ describe("OAuth One-Time Code Exchange (Task 3.5)", () => {
     const code = searchParams.get("code");
     const hash = "#accessToken=legacy-token&refreshToken=legacy-refresh";
 
-    const replaceState = mock((_state: unknown, _title: string, url: string) => {});
+    const replaceState = mock((_state: unknown, _title: string, _url: string) => {});
     const navigateToLogin = mock(() => {});
 
     // Code is missing

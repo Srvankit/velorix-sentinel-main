@@ -32,7 +32,9 @@ describe("Route Shell Gating & Navigation Filtering (Task 5.2)", () => {
 
     test("unbuilt modules are removed from the active navigation array", () => {
       // Find the declaration of `export const navigation: NavSection[] = [...]`
-      const navArrayMatch = navigationContent.match(/export const navigation:\s*NavSection\[\]\s*=\s*\[([\s\S]*?)\];/);
+      const navArrayMatch = navigationContent.match(
+        /export const navigation:\s*NavSection\[\]\s*=\s*\[([\s\S]*?)\];/,
+      );
       expect(navArrayMatch).not.toBeNull();
       const activeNavBlock = navArrayMatch![1];
 
@@ -70,13 +72,19 @@ describe("Route Shell Gating & Navigation Filtering (Task 5.2)", () => {
 
   describe("Deferred Route Shell Gating", () => {
     test("backend readiness flags remain false in services", () => {
-      const incidentService = fs.readFileSync(path.join(servicesDir, "incidentService.ts"), "utf-8");
+      const incidentService = fs.readFileSync(
+        path.join(servicesDir, "incidentService.ts"),
+        "utf-8",
+      );
       expect(incidentService).toContain("export const INCIDENT_BACKEND_READY = false;");
 
       const socService = fs.readFileSync(path.join(servicesDir, "socService.ts"), "utf-8");
       expect(socService).toContain("export const SOC_BACKEND_READY = false;");
 
-      const obsService = fs.readFileSync(path.join(servicesDir, "observabilityService.ts"), "utf-8");
+      const obsService = fs.readFileSync(
+        path.join(servicesDir, "observabilityService.ts"),
+        "utf-8",
+      );
       expect(obsService).toContain("export const OBSERVABILITY_BACKEND_READY = false;");
 
       const govService = fs.readFileSync(path.join(servicesDir, "governanceService.ts"), "utf-8");

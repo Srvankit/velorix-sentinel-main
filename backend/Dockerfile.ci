@@ -1,0 +1,32 @@
+# ==============================================================================
+# Velorix Sentinel - Production CI Runtime Container Image
+# Packages the pre-verified Spring Boot artifact produced by the backend CI job.
+# Maintains identical security controls, UID 10001, healthcheck, and JVM flags.
+# ==============================================================================
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+
+# Install curl for container health check
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Run as unprivileged non-root user
+RUN groupadd -g 10001 appuser && \
+    useradd -u 10001 -g appuser -d /app -s /sbin/nologin appuser && \
+    chown -R 10001:10001 /app
+
+# Copy verified Spring Boot executable fat jar
+COPY --chown=10001:10001 target/sentinel-backend-*.jar app.jar
+
+# Render / production web service port
+ENV SERVER_PORT=10000
+EXPOSE 10000
+
+USER 10001:10001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:10000/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-XX:InitialRAMPercentage=50.0", "-jar", "app.jar"]

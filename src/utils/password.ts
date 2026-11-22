@@ -39,6 +39,7 @@ export function scorePassword(value: string): PasswordStrength {
 export function isStrongPassword(value: string): boolean {
   if (!value) return false;
   if (value.length < 10 || value.length > 72) return false;
-  if (typeof TextEncoder !== "undefined" && new TextEncoder().encode(value).length > 72) return false;
+  if (typeof TextEncoder !== "undefined" && new TextEncoder().encode(value).length > 72)
+    return false;
   return RULES.every((r) => r.test(value));
 }

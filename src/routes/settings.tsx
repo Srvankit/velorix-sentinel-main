@@ -213,7 +213,8 @@ function SettingsPage() {
       setConfirmPassword("");
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
-      const msg = apiErr?.response?.data?.message || apiErr?.message || "Failed to change password.";
+      const msg =
+        apiErr?.response?.data?.message || apiErr?.message || "Failed to change password.";
       setPasswordError(msg);
       toast.error("Failed to change password", { description: msg });
     } finally {
@@ -361,7 +362,8 @@ function SettingsPage() {
                 <div>
                   <p className="text-sm font-medium text-destructive">Delete account</p>
                   <p className="text-xs text-muted-foreground">
-                    Permanently delete your profile, capture files, analysis findings, and active sessions.
+                    Permanently delete your profile, capture files, analysis findings, and active
+                    sessions.
                   </p>
                 </div>
                 <Button

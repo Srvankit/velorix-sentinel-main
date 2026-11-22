@@ -53,7 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isInitializing || !session || restoredSessionRef.current !== session.refreshToken) return;
     restoredSessionRef.current = null;
-    void authService.currentUser()
+    void authService
+      .currentUser()
       .then((user) => persistSession({ ...session, user }))
       .catch(() => {
         clearSession();
@@ -143,12 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persistSession],
   );
 
-  const register = useCallback(
-    async (payload: RegisterRequest) => {
-      await authService.register(payload);
-    },
-    [],
-  );
+  const register = useCallback(async (payload: RegisterRequest) => {
+    await authService.register(payload);
+  }, []);
 
   const logout = useCallback(async () => {
     const current = sessionRef.current;
