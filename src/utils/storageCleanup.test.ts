@@ -24,14 +24,28 @@ describe("Build Artifact Cleanup & Legacy Key Deprecation (Task 5.6, L7)", () =>
     });
 
     test("storage operations function properly with standardized key", () => {
-      const mockSession = { token: "test-jwt", user: { id: "u-1" } };
-      storage.set(STORAGE_KEYS.session, mockSession);
+      const storageMap = new Map<string, string>();
+      const originalWindow = (globalThis as unknown as { window?: unknown }).window;
+      (globalThis as unknown as { window: unknown }).window = {
+        localStorage: {
+          getItem: (k: string) => storageMap.get(k) ?? null,
+          setItem: (k: string, v: string) => storageMap.set(k, v),
+          removeItem: (k: string) => storageMap.delete(k),
+        },
+      };
 
-      const retrieved = storage.get<typeof mockSession>(STORAGE_KEYS.session);
-      expect(retrieved).toEqual(mockSession);
+      try {
+        const mockSession = { token: "test-jwt", user: { id: "u-1" } };
+        storage.set(STORAGE_KEYS.session, mockSession);
 
-      storage.remove(STORAGE_KEYS.session);
-      expect(storage.get(STORAGE_KEYS.session)).toBeNull();
+        const retrieved = storage.get<typeof mockSession>(STORAGE_KEYS.session);
+        expect(retrieved).toEqual(mockSession);
+
+        storage.remove(STORAGE_KEYS.session);
+        expect(storage.get(STORAGE_KEYS.session)).toBeNull();
+      } finally {
+        (globalThis as unknown as { window?: unknown }).window = originalWindow;
+      }
     });
   });
 
