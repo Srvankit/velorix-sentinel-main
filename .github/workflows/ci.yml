@@ -174,7 +174,7 @@ jobs:
           path: backend/target
 
       - name: Set up Docker Buildx
-        uses: actions/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3
 
       - name: Build production runtime container image
         run: |
