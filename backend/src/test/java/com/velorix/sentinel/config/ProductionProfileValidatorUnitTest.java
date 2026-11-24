@@ -41,11 +41,13 @@ class ProductionProfileValidatorUnitTest {
         env.setProperty("spring.datasource.url", VALID_DB_URL);
         env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
         env.setProperty("spring.flyway.clean-disabled", "true");
+        env.setProperty("spring.mail.host", "smtp.sendgrid.net");
 
         JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
         CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
         AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
-        StorageProperties storageProps = new StorageProperties("filesystem", "/var/captures", null, null, null, null, 10, null);
+        StorageProperties.S3Properties s3 = new StorageProperties.S3Properties("velorix-captures-staging", "us-east-1", null, null, null, true, "captures/");
+        StorageProperties storageProps = new StorageProperties("s3", null, null, null, null, s3, 10, null);
 
         ObjectProvider<DataSourceProperties> dsProvider = mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD);
         ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps, dsProvider);
@@ -244,6 +246,117 @@ class ProductionProfileValidatorUnitTest {
         assertThatThrownBy(() -> validator.validate(true))
                 .isInstanceOf(ProductionConfigurationException.class)
                 .hasMessageContaining("Production configuration validation failed with");
+    }
+
+    @Test
+    @DisplayName("Missing spring.mail.host in production is rejected without override")
+    void missingMailHostInProductionIsRejected() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.url", VALID_DB_URL);
+        env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
+        env.setProperty("spring.flyway.clean-disabled", "true");
+        // spring.mail.host omitted
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
+        StorageProperties.S3Properties s3 = new StorageProperties.S3Properties("velorix-captures-staging", "us-east-1", null, null, null, true, "captures/");
+        StorageProperties storageProps = new StorageProperties("s3", null, null, null, null, s3, 10, null);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps,
+                mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD));
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).anyMatch(v -> v.contains("spring.mail.host (SMTP_HOST) is missing or blank"));
+    }
+
+    @Test
+    @DisplayName("Missing spring.mail.host with ALLOW_LOGGING_EMAIL_FALLBACK=true logs warning and passes")
+    void missingMailHostWithOverridePasses() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.url", VALID_DB_URL);
+        env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
+        env.setProperty("spring.flyway.clean-disabled", "true");
+        env.setProperty("ALLOW_LOGGING_EMAIL_FALLBACK", "true");
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
+        StorageProperties.S3Properties s3 = new StorageProperties.S3Properties("velorix-captures-staging", "us-east-1", null, null, null, true, "captures/");
+        StorageProperties storageProps = new StorageProperties("s3", null, null, null, null, s3, 10, null);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps,
+                mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD));
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).noneMatch(v -> v.contains("spring.mail.host"));
+    }
+
+    @Test
+    @DisplayName("Filesystem storage in production is rejected without override")
+    void filesystemStorageInProductionIsRejected() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.url", VALID_DB_URL);
+        env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
+        env.setProperty("spring.flyway.clean-disabled", "true");
+        env.setProperty("spring.mail.host", "smtp.sendgrid.net");
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
+        StorageProperties storageProps = new StorageProperties("filesystem", "/var/captures", null, null, null, null, 10, null);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps,
+                mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD));
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).anyMatch(v -> v.contains("velorix.storage.provider is configured as 'filesystem' in production profile"));
+    }
+
+    @Test
+    @DisplayName("Filesystem storage with ALLOW_FILESYSTEM_STORAGE=true logs warning and passes")
+    void filesystemStorageWithOverridePasses() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.url", VALID_DB_URL);
+        env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
+        env.setProperty("spring.flyway.clean-disabled", "true");
+        env.setProperty("spring.mail.host", "smtp.sendgrid.net");
+        env.setProperty("ALLOW_FILESYSTEM_STORAGE", "true");
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
+        StorageProperties storageProps = new StorageProperties("filesystem", "/var/captures", null, null, null, null, 10, null);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps,
+                mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD));
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).noneMatch(v -> v.contains("velorix.storage.provider"));
+    }
+
+    @Test
+    @DisplayName("S3 storage missing bucket in production is rejected")
+    void s3StorageMissingBucketIsRejected() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("velorix.storage.s3.bucket", "   ");
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", null, null, null, null);
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, null, null, null, null, null);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, null, null, null);
+        StorageProperties.S3Properties s3 = new StorageProperties.S3Properties("", "us-east-1", null, null, null, true, null);
+        StorageProperties storageProps = new StorageProperties("s3", null, null, null, null, s3, null, null);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps,
+                mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD));
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).anyMatch(v -> v.contains("velorix.storage.s3.bucket") && v.contains("required"));
     }
 
     @Test

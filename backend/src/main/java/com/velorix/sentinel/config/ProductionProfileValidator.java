@@ -102,6 +102,7 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
         validateFrontendBaseUrl(violations);
         validateCorsAllowedOrigins(violations);
         validateStorageConfiguration(violations);
+        validateEmailConfiguration(violations);
         validateOpenApiGating(violations);
         validateFlywayConfiguration(violations);
 
@@ -211,16 +212,30 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
 
     private void validateStorageConfiguration(List<String> violations) {
         String provider = storageProperties != null ? storageProperties.provider() : "filesystem";
+        boolean allowFilesystem = Boolean.TRUE.equals(environment.getProperty("velorix.storage.allow-filesystem-storage", Boolean.class))
+                || Boolean.parseBoolean(environment.getProperty("ALLOW_FILESYSTEM_STORAGE", "false"));
+
         if ("s3".equalsIgnoreCase(provider)) {
             StorageProperties.S3Properties s3 = storageProperties != null ? storageProperties.s3() : null;
             String envBucket = environment.getProperty("velorix.storage.s3.bucket");
-            if (envBucket != null && envBucket.isBlank()) {
+            String bucket = (s3 != null && s3.bucket() != null) ? s3.bucket() : envBucket;
+            if (bucket == null || bucket.isBlank()) {
                 violations.add("velorix.storage.s3.bucket (S3_BUCKET_NAME / SUPABASE_STORAGE_BUCKET) is required when storage provider is 's3'.");
             }
-            if (s3 != null && (s3.region() == null || s3.region().isBlank())) {
+            String envRegion = environment.getProperty("velorix.storage.s3.region");
+            String region = (s3 != null && s3.region() != null) ? s3.region() : envRegion;
+            if (region == null || region.isBlank()) {
                 violations.add("velorix.storage.s3.region (AWS_REGION / S3_REGION) is required when storage provider is 's3'.");
             }
             if (s3 != null) {
+                if (s3.endpoint() != null && !s3.endpoint().isBlank()) {
+                    boolean pathStyleConfigured = environment.containsProperty("velorix.storage.s3.path-style-access")
+                            || environment.containsProperty("S3_PATH_STYLE_ACCESS")
+                            || s3.pathStyleAccess();
+                    if (!pathStyleConfigured) {
+                        violations.add("velorix.storage.s3.path-style-access (S3_PATH_STYLE_ACCESS) must be configured when custom S3 endpoint is specified.");
+                    }
+                }
                 boolean hasAccess = s3.accessKey() != null && !s3.accessKey().isBlank();
                 boolean hasSecret = s3.secretKey() != null && !s3.secretKey().isBlank();
                 if (hasAccess != hasSecret) {
@@ -228,7 +243,25 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
                 }
             }
         } else if ("filesystem".equalsIgnoreCase(provider)) {
-            log.warn("PRODUCTION WARNING: velorix.storage.provider is set to 'filesystem'. Captures on ephemeral container storage may be lost upon restart. S3-compatible object storage (Supabase Storage) is strongly recommended.");
+            if (allowFilesystem) {
+                log.warn("EMERGENCY OVERRIDE WARNING: velorix.storage.provider is set to 'filesystem' via ALLOW_FILESYSTEM_STORAGE=true. Captures on ephemeral container storage will be lost upon restart. S3-compatible object storage (Supabase Storage) is strongly recommended for production/staging.");
+            } else {
+                violations.add("velorix.storage.provider is configured as 'filesystem' in production profile. Ephemeral container storage will permanently lose user captures on container restarts. S3-compatible object storage (VELORIX_STORAGE_PROVIDER=s3) is required. Set ALLOW_FILESYSTEM_STORAGE=true only for temporary emergency overrides.");
+            }
+        }
+    }
+
+    private void validateEmailConfiguration(List<String> violations) {
+        String mailHost = environment.getProperty("spring.mail.host");
+        boolean allowLoggingFallback = Boolean.TRUE.equals(environment.getProperty("velorix.mail.allow-logging-fallback", Boolean.class))
+                || Boolean.parseBoolean(environment.getProperty("ALLOW_LOGGING_EMAIL_FALLBACK", "false"));
+
+        if (mailHost == null || mailHost.isBlank()) {
+            if (allowLoggingFallback) {
+                log.warn("EMERGENCY OVERRIDE WARNING: spring.mail.host (SMTP_HOST) is missing or blank in production profile, but ALLOW_LOGGING_EMAIL_FALLBACK=true override is active. Real registration and password reset emails will NOT be delivered!");
+            } else {
+                violations.add("spring.mail.host (SMTP_HOST) is missing or blank in production profile. Real transactional email delivery is required for user account verification and password resets. Configure SMTP credentials or set ALLOW_LOGGING_EMAIL_FALLBACK=true only for temporary emergency overrides.");
+            }
         }
     }
 
