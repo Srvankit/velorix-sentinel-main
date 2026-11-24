@@ -1,0 +1,102 @@
+name: NVD Database Cache Warm
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Runs daily at 02:00 UTC (off-peak)
+  workflow_dispatch:      # Allows manual trigger via GitHub Actions UI
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nvd-cache-warm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  warm-cache:
+    name: Warm NVD CVE Database Cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+
+      - name: Restore existing OWASP Dependency-Check database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-owasp-dependency-check-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-owasp-dependency-check-
+            ${{ runner.os }}-owasp-dependency-check
+
+      - name: Synchronize NVD Vulnerability Database (update-only)
+        id: nvd-update
+        timeout-minutes: 80
+        continue-on-error: true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          NVD_ARGS=""
+          if [ -n "$NVD_API_KEY" ]; then
+            echo "NVD API key detected; synchronizing with authenticated rate limits (nvdApiDelay: 3500ms)."
+            NVD_ARGS="-DnvdApiKey=$NVD_API_KEY"
+          else
+            echo "::warning::No NVD API key provided (NVD_API_KEY secret is empty). Synchronization will use unauthenticated rate limits (8000ms delay) and may take 60-90 minutes on cold cache."
+          fi
+
+          echo "Starting OWASP Dependency-Check update-only goal..."
+          START_TIME=$(date +%s)
+
+          set +e
+          mvn --batch-mode dependency-check:update-only -Psecurity-audit -f backend/pom.xml $NVD_ARGS
+          EXIT_CODE=$?
+          set -e
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "sync_duration=$DURATION" >> "$GITHUB_OUTPUT"
+          echo "sync_exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::warning::NVD database update exited with code $EXIT_CODE after ${DURATION}s."
+            exit $EXIT_CODE
+          fi
+
+      - name: Save updated OWASP Dependency-Check database cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-owasp-dependency-check-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Record NVD Cache Warm Summary
+        if: always()
+        run: |
+          OUTCOME="${{ steps.nvd-update.outcome }}"
+          DURATION="${{ steps.nvd-update.outputs.sync_duration }}"
+
+          echo "## NVD Database Cache Warm Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$OUTCOME" = "success" ]; then
+            echo ":white_check_mark: **Status: NVD Database Successfully Synchronized**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Duration:** ${DURATION}s" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **NVD Mode:** $([ -n "${{ secrets.NVD_API_KEY }}" ] && echo 'Authenticated (NVD API Key active)' || echo 'Unauthenticated fallback (Rate limited)')" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Cache Key:** \`${{ runner.os }}-owasp-dependency-check-${{ github.run_id }}-${{ github.run_attempt }}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Availability:** This warm cache is now available to all subsequent CI runs and pull requests targeting \`main\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo ":warning: **Status: NVD Database Synchronization Incomplete / Partial**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Step Outcome:** \`$OUTCOME\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Duration:** ${DURATION}s" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Cache Status:** Any partially downloaded CVE records were saved to the cache to allow resuming on the next run." >> "$GITHUB_STEP_SUMMARY"
+          fi
