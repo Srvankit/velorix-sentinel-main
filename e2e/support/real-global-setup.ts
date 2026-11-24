@@ -43,7 +43,9 @@ export default async function globalSetup() {
   // 1. Ensure PostgreSQL container is running on port 5499
   const pgPortOpen = await checkPortOpen(5499);
   if (!pgPortOpen) {
-    console.log("[E2E Real Setup] PostgreSQL container not detected on port 5499. Launching velorix-e2e-pg...");
+    console.log(
+      "[E2E Real Setup] PostgreSQL container not detected on port 5499. Launching velorix-e2e-pg...",
+    );
     try {
       execSync("docker rm -f velorix-e2e-pg", { stdio: "ignore" });
     } catch {
@@ -67,13 +69,17 @@ export default async function globalSetup() {
     await new Promise((r) => setTimeout(r, 1000));
   }
   if (!pgReady) {
-    throw new Error("[E2E Real Setup] PostgreSQL container failed to accept connections on port 5499 within 30s.");
+    throw new Error(
+      "[E2E Real Setup] PostgreSQL container failed to accept connections on port 5499 within 30s.",
+    );
   }
   console.log("[E2E Real Setup] PostgreSQL is ready on port 5499.");
 
   // 2. Ensure Spring Boot backend is running
   if (await isBackendHealthy()) {
-    console.log("[E2E Real Setup] Spring Boot backend is already running and healthy on port 8080.");
+    console.log(
+      "[E2E Real Setup] Spring Boot backend is already running and healthy on port 8080.",
+    );
     return;
   }
 
@@ -81,20 +87,21 @@ export default async function globalSetup() {
   const jarPath = path.resolve(rootDir, "backend/target/sentinel-backend-0.1.0.jar");
   if (!fs.existsSync(jarPath)) {
     console.log("[E2E Real Setup] Backend jar not found. Building with Maven...");
-    execSync("mvn clean package -DskipTests -f backend/pom.xml", { cwd: rootDir, stdio: "inherit" });
+    execSync("mvn clean package -DskipTests -f backend/pom.xml", {
+      cwd: rootDir,
+      stdio: "inherit",
+    });
   }
 
   console.log("[E2E Real Setup] Starting Spring Boot backend in e2e profile on port 8080...");
-  const logStream = fs.createWriteStream(path.resolve(__dirname, "../backend-e2e.log"), { flags: "a" });
-  const backendProc = spawn(
-    "java",
-    ["-Dspring.profiles.active=e2e", "-jar", jarPath],
-    {
-      cwd: rootDir,
-      detached: true,
-      stdio: ["ignore", logStream, logStream],
-    },
-  );
+  const logStream = fs.createWriteStream(path.resolve(__dirname, "../backend-e2e.log"), {
+    flags: "a",
+  });
+  const backendProc = spawn("java", ["-Dspring.profiles.active=e2e", "-jar", jarPath], {
+    cwd: rootDir,
+    detached: true,
+    stdio: ["ignore", logStream, logStream],
+  });
 
   backendProc.unref();
   if (backendProc.pid) {
@@ -118,7 +125,9 @@ export default async function globalSetup() {
     const recentLogs = fs.existsSync(path.resolve(__dirname, "../backend-e2e.log"))
       ? fs.readFileSync(path.resolve(__dirname, "../backend-e2e.log"), "utf8").slice(-2000)
       : "No logs found";
-    throw new Error(`[E2E Real Setup] Spring Boot backend failed to become healthy within 90s.\nRecent backend logs:\n${recentLogs}`);
+    throw new Error(
+      `[E2E Real Setup] Spring Boot backend failed to become healthy within 90s.\nRecent backend logs:\n${recentLogs}`,
+    );
   }
 
   console.log("[E2E Real Setup] Spring Boot backend is UP and accepting traffic on port 8080.\n");

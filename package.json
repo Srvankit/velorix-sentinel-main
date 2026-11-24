@@ -77,7 +77,9 @@
     "zod": "^4.6.7"
   },
   "overrides": {
-    "brace-expansion": "^1.1.21 || ^5.0.12"
+    "eslint": {
+      "brace-expansion": "^1.1.21"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -87,6 +89,7 @@
     "@testing-library/jest-dom": "^8.0.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.13",
+    "@types/bun": "^1.2.4",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -98,6 +101,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "jsdom": "^29.1.1",
+    "lru-cache": "^11.5.3",
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",

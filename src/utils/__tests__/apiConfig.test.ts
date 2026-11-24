@@ -97,14 +97,17 @@ describe("apiConfig utility (Task 7.3 Unit Tests)", () => {
       "http://127.0.0.1:8080/api",
       "http://0.0.0.0:8080/api",
       "http://[::1]:8080/api",
-    ])("flags unreachable localhost backend when frontend is served from remote host (%s)", (url) => {
-      const config = resolveApiConfig(url, true, false);
+    ])(
+      "flags unreachable localhost backend when frontend is served from remote host (%s)",
+      (url) => {
+        const config = resolveApiConfig(url, true, false);
 
-      expect(config.isUsable).toBe(false);
-      expect(config.problem?.kind).toBe("unreachable-localhost");
-      expect(config.problem?.title).toContain("cannot reach your local backend");
-      expect(config.baseUrl).toBe(url.replace(/\/+$/, ""));
-    });
+        expect(config.isUsable).toBe(false);
+        expect(config.problem?.kind).toBe("unreachable-localhost");
+        expect(config.problem?.title).toContain("cannot reach your local backend");
+        expect(config.baseUrl).toBe(url.replace(/\/+$/, ""));
+      },
+    );
   });
 
   describe("isLocalHostname helper", () => {

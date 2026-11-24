@@ -65,12 +65,17 @@ export function ModulePlaceholder({
                     Back to Dashboard
                   </Link>
                 </Button>
-                <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[11px]">
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 bg-primary/10 text-primary text-[11px]"
+                >
                   <Clock className="mr-1 size-3" />
                   {phase} Preview
                 </Badge>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                {title}
+              </h1>
               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
 
@@ -83,7 +88,10 @@ export function ModulePlaceholder({
           </div>
 
           <div className="relative overflow-hidden rounded-2xl border border-border bg-card/60 p-6 sm:p-10">
-            <div className="ambient-grid pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+            <div
+              className="ambient-grid pointer-events-none absolute inset-0 opacity-50"
+              aria-hidden
+            />
 
             <div className="relative z-10 mx-auto max-w-2xl text-center">
               <div className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-lg shadow-primary/5">
@@ -101,9 +109,9 @@ export function ModulePlaceholder({
 
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 During the current public beta, {APP_NAME} focuses on deterministic offline PCAP and
-                PCAPNG inspection, 13 automated threat detection rules, and verified capture storage.
-                Full interactive {title.toLowerCase()} capabilities will connect to live backend
-                services in {phase}.
+                PCAPNG inspection, 13 automated threat detection rules, and verified capture
+                storage. Full interactive {title.toLowerCase()} capabilities will connect to live
+                backend services in {phase}.
               </p>
 
               {plannedFeatures && plannedFeatures.length > 0 && (
@@ -113,8 +121,14 @@ export function ModulePlaceholder({
                   </h3>
                   <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
                     {plannedFeatures.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-xs text-foreground/90">
-                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-xs text-foreground/90"
+                      >
+                        <CheckCircle2
+                          className="mt-0.5 size-3.5 shrink-0 text-primary"
+                          aria-hidden="true"
+                        />
                         <span>{feature}</span>
                       </li>
                     ))}

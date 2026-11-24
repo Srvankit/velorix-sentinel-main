@@ -185,11 +185,19 @@ function RegisterPage() {
             className="text-sm font-normal leading-relaxed text-muted-foreground"
           >
             I agree to the{" "}
-            <Link to="/terms" target="_blank" className="text-primary underline hover:text-primary/80">
+            <Link
+              to="/terms"
+              target="_blank"
+              className="text-primary underline hover:text-primary/80"
+            >
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link to="/privacy" target="_blank" className="text-primary underline hover:text-primary/80">
+            <Link
+              to="/privacy"
+              target="_blank"
+              className="text-primary underline hover:text-primary/80"
+            >
               Privacy Policy
             </Link>
             .

@@ -1,18 +1,21 @@
 import type { Page, Route } from "@playwright/test";
 
 export interface MockBackendState {
-  registeredUsers: Map<string, {
-    id: string;
-    firstName: string;
-    lastName: string;
-    fullName: string;
-    email: string;
-    password: string;
-    verified: boolean;
-    active: boolean;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  registeredUsers: Map<
+    string,
+    {
+      id: string;
+      firstName: string;
+      lastName: string;
+      fullName: string;
+      email: string;
+      password: string;
+      verified: boolean;
+      active: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }
+  >;
   verificationTokens: Map<string, string>; // email -> token
   uploadedFiles: Array<{
     id: string;
@@ -54,17 +57,20 @@ export interface MockBackendState {
     createdAt: string;
     updatedAt: string;
   }>;
-  threatSummaries: Map<string, {
-    id: string;
-    analysisId: string;
-    totalThreats: number;
-    criticalThreats: number;
-    highThreats: number;
-    mediumThreats: number;
-    lowThreats: number;
-    riskScore: number;
-    overallStatus: string;
-  }>;
+  threatSummaries: Map<
+    string,
+    {
+      id: string;
+      analysisId: string;
+      totalThreats: number;
+      criticalThreats: number;
+      highThreats: number;
+      mediumThreats: number;
+      lowThreats: number;
+      riskScore: number;
+      overallStatus: string;
+    }
+  >;
   threats: Array<{
     id: string;
     analysisId: string;
@@ -110,10 +116,13 @@ export function createMockBackendState(): MockBackendState {
   };
 }
 
-export async function setupMockBackend(page: Page, state: MockBackendState = createMockBackendState()) {
+export async function setupMockBackend(
+  page: Page,
+  state: MockBackendState = createMockBackendState(),
+) {
   let fileCounter = 1;
   let analysisCounter = 1;
-  let currentToken = "mock-jwt-token-sentinel-2026";
+  const currentToken = "mock-jwt-token-sentinel-2026";
 
   await page.route("**/api/**", async (route: Route) => {
     const request = route.request();
@@ -200,7 +209,7 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
           updatedAt: user.updatedAt,
         },
         "Registration successful. Verification email dispatched.",
-        201
+        201,
       );
     }
 
@@ -244,7 +253,11 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
 
     // 4. LOGIN
     if (path.includes("/auth/login") && method === "POST") {
-      const body = request.postDataJSON() as { email?: string; password?: string; rememberMe?: boolean };
+      const body = request.postDataJSON() as {
+        email?: string;
+        password?: string;
+        rememberMe?: boolean;
+      };
       const email = (body.email || "").trim().toLowerCase();
       let user = state.registeredUsers.get(email);
 
@@ -280,25 +293,28 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
         occurredAt: now.toISOString(),
       });
 
-      return ok({
-        accessToken: currentToken,
-        refreshToken: `mock-refresh-token-${Date.now()}`,
-        tokenType: "Bearer",
-        accessTokenExpiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
-        refreshTokenExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        user: {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.fullName,
-          email: user.email,
-          role: "ANALYST",
-          verified: true,
-          active: true,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
+      return ok(
+        {
+          accessToken: currentToken,
+          refreshToken: `mock-refresh-token-${Date.now()}`,
+          tokenType: "Bearer",
+          accessTokenExpiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+          refreshTokenExpiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: user.fullName,
+            email: user.email,
+            role: "ANALYST",
+            verified: true,
+            active: true,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+          },
         },
-      }, "Login successful");
+        "Login successful",
+      );
     }
 
     // 5. CURRENT USER (ME)
@@ -342,7 +358,7 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
       const postData = request.postData();
       if (postData && (postData.includes("port_scan") || postData.includes("syn_port_scan"))) {
         fileName = "syn_port_scan.pcap";
-      } else if (postData && postData.includes("filename=\"")) {
+      } else if (postData && postData.includes('filename="')) {
         const match = postData.match(/filename="([^"]+)"/);
         if (match && match[1]) fileName = match[1];
       }
@@ -444,9 +460,12 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
           confidenceScore: 0.95,
           confidencePercent: 95,
           title: "SYN Port Scan Detected",
-          description: "Multiple TCP SYN packets sent to distinct destination ports in rapid succession, indicating active host reconnaissance.",
-          recommendation: "Block source IP at perimeter firewall and inspect targeted destination ports for exposure.",
-          evidence: "TCP SYN sweep detected across 12 distinct destination ports from 192.168.1.100 within 500ms window.",
+          description:
+            "Multiple TCP SYN packets sent to distinct destination ports in rapid succession, indicating active host reconnaissance.",
+          recommendation:
+            "Block source IP at perimeter firewall and inspect targeted destination ports for exposure.",
+          evidence:
+            "TCP SYN sweep detected across 12 distinct destination ports from 192.168.1.100 within 500ms window.",
           detectionRule: "RULE_PORT_SCAN_SYN",
           ruleVersion: "1.0.0",
           mitreTechnique: "T1046",
@@ -676,8 +695,22 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
       const totalThreats = state.threats.length;
       return ok({
         threatTrend: [
-          { bucketStart: "2026-11-20T00:00:00Z", total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-          { bucketStart: "2026-11-21T00:00:00Z", total: totalThreats, critical: 0, high: totalThreats, medium: 0, low: 0 },
+          {
+            bucketStart: "2026-11-20T00:00:00Z",
+            total: 0,
+            critical: 0,
+            high: 0,
+            medium: 0,
+            low: 0,
+          },
+          {
+            bucketStart: "2026-11-21T00:00:00Z",
+            total: totalThreats,
+            critical: 0,
+            high: totalThreats,
+            medium: 0,
+            low: 0,
+          },
         ],
         protocolDistribution: [
           { label: "TCP", count: 42 },
@@ -727,7 +760,11 @@ export async function setupMockBackend(page: Page, state: MockBackendState = cre
     if (path.includes("/dashboard/system-health") && method === "GET") {
       return ok({
         api: { name: "REST API Gateway", status: "UP", detail: "Operational, 12ms latency" },
-        database: { name: "PostgreSQL Database", status: "UP", detail: "Connected, 8ms query time" },
+        database: {
+          name: "PostgreSQL Database",
+          status: "UP",
+          detail: "Connected, 8ms query time",
+        },
         worker: { name: "DPI Worker Engine", status: "UP", detail: "Active, 0 pending jobs" },
         checkedAt: new Date().toISOString(),
       });

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.velorix.sentinel.BaseIntegrationTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velorix.sentinel.entity.Analysis;
 import com.velorix.sentinel.entity.Packet;
@@ -42,7 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class SortValidationIntegrationTest {
+class SortValidationIntegrationTest extends BaseIntegrationTest {
 
     private static final String PASSWORD = "Str0ng!Passw0rd";
 
@@ -87,15 +88,15 @@ class SortValidationIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        threatRepository.deleteAll();
-        analysisSummaryRepository.deleteAll();
-        packetRepository.deleteAll();
-        analysisRepository.deleteAll();
-        uploadedFileRepository.deleteAll();
-        activityLogRepository.deleteAll();
-        refreshTokenRepository.deleteAll();
-        verificationTokenRepository.deleteAll();
-        userRepository.deleteAll();
+        threatRepository.deleteAllInBatch();
+        analysisSummaryRepository.deleteAllInBatch();
+        packetRepository.deleteAllInBatch();
+        analysisRepository.deleteAllInBatch();
+        uploadedFileRepository.deleteAllInBatch();
+        activityLogRepository.deleteAllInBatch();
+        refreshTokenRepository.deleteAllInBatch();
+        verificationTokenRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
 
         User user = userRepository.save(User.builder()
                 .firstName("Sort")

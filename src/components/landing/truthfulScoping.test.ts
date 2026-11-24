@@ -63,7 +63,9 @@ describe("Truthful Marketing Claims & Legal Links (Task 5.1)", () => {
     });
 
     test("Faq.tsx accurately describes REST APIs and planned webhooks", () => {
-      expect(faqContent).toContain("Export findings via standard JSON REST APIs (SIEM webhooks planned)");
+      expect(faqContent).toContain(
+        "Export findings via standard JSON REST APIs (SIEM webhooks planned)",
+      );
     });
 
     test("Faq.tsx accurately specifies offline PCAP/PCAPNG capture analysis", () => {
@@ -71,7 +73,9 @@ describe("Truthful Marketing Claims & Legal Links (Task 5.1)", () => {
     });
 
     test("Faq.tsx clarifies 13-rule deterministic threat detection", () => {
-      expect(faqContent).toContain("deterministic rule engine detecting scans, floods, brute-force, beaconing, and anomalous flows");
+      expect(faqContent).toContain(
+        "deterministic rule engine detecting scans, floods, brute-force, beaconing, and anomalous flows",
+      );
     });
 
     test("Hero.tsx accurately describes PCAP and PCAPNG capture inspection", () => {
@@ -119,4 +123,3 @@ describe("Truthful Marketing Claims & Legal Links (Task 5.1)", () => {
     });
   });
 });
-

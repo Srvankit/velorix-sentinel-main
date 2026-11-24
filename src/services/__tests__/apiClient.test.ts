@@ -1,11 +1,6 @@
-import axios, { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  api,
-  configureApiClient,
-  httpClient,
-  toApiError,
-} from "@/services/apiClient";
+import { configureApiClient, httpClient, toApiError } from "@/services/apiClient";
 
 describe("apiClient service (Task 7.3 Unit Tests)", () => {
   beforeEach(() => {
@@ -108,9 +103,13 @@ describe("apiClient service (Task 7.3 Unit Tests)", () => {
       };
 
       // Retrieve the request interceptor handler
-      const requestHandlers = (httpClient.interceptors.request as unknown as {
-        handlers: Array<{ fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig }>;
-      }).handlers;
+      const requestHandlers = (
+        httpClient.interceptors.request as unknown as {
+          handlers: Array<{
+            fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
+          }>;
+        }
+      ).handlers;
 
       const fulfilled = requestHandlers[requestHandlers.length - 1].fulfilled;
       const modifiedConfig = await fulfilled(config);
@@ -128,9 +127,13 @@ describe("apiClient service (Task 7.3 Unit Tests)", () => {
         headers: new AxiosHeaders(),
       };
 
-      const requestHandlers = (httpClient.interceptors.request as unknown as {
-        handlers: Array<{ fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig }>;
-      }).handlers;
+      const requestHandlers = (
+        httpClient.interceptors.request as unknown as {
+          handlers: Array<{
+            fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
+          }>;
+        }
+      ).handlers;
 
       const fulfilled = requestHandlers[requestHandlers.length - 1].fulfilled;
       const modifiedConfig = await fulfilled(config);
@@ -150,9 +153,11 @@ describe("apiClient service (Task 7.3 Unit Tests)", () => {
         refreshSession,
       });
 
-      const responseHandlers = (httpClient.interceptors.response as unknown as {
-        handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
-      }).handlers;
+      const responseHandlers = (
+        httpClient.interceptors.response as unknown as {
+          handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
+        }
+      ).handlers;
 
       const rejected = responseHandlers[responseHandlers.length - 1].rejected;
 
@@ -186,9 +191,11 @@ describe("apiClient service (Task 7.3 Unit Tests)", () => {
         refreshSession,
       });
 
-      const responseHandlers = (httpClient.interceptors.response as unknown as {
-        handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
-      }).handlers;
+      const responseHandlers = (
+        httpClient.interceptors.response as unknown as {
+          handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
+        }
+      ).handlers;
 
       const rejected = responseHandlers[responseHandlers.length - 1].rejected;
 

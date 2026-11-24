@@ -56,7 +56,9 @@ test.describe("Velorix Sentinel - Real Backend Full-Stack Integration", () => {
 
     // Verify redirection to /verify-email upon successful registration
     await page.waitForURL(/\/verify-email/i, { timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: /Check your inbox/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Check your inbox/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // ------------------------------------------------------------------------
     // Step 3: Real Email Verification Simulation via Test Helper
@@ -124,7 +126,9 @@ test.describe("Velorix Sentinel - Real Backend Full-Stack Integration", () => {
     // ------------------------------------------------------------------------
     await page.getByRole("link", { name: "Upload", exact: true }).click();
     await page.waitForURL(/\/upload/i, { timeout: 15_000 });
-    await expect(page.getByText(/Drop packet captures here|Capture uploads/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/Drop packet captures here|Capture uploads/i).first(),
+    ).toBeVisible();
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(cleanCapturePath);
@@ -176,10 +180,14 @@ test.describe("Velorix Sentinel - Real Backend Full-Stack Integration", () => {
     // Navigate to /threats to verify real detection findings persisted in database
     await page.getByRole("link", { name: "Threats", exact: true }).click();
     await page.waitForURL(/\/threats/i, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Threat detection/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Threat detection/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Look for threat row produced by detection engine (PORT_SCAN or SYN_SCAN)
-    const threatRow = page.locator("tr", { hasText: /Port scan|SYN.*scan|PORT_SCAN|SYN_SCAN/i }).first();
+    const threatRow = page
+      .locator("tr", { hasText: /Port scan|SYN.*scan|PORT_SCAN|SYN_SCAN/i })
+      .first();
     await expect(threatRow).toBeVisible({ timeout: 20_000 });
 
     // Click finding row to open threat drawer
@@ -187,7 +195,9 @@ test.describe("Velorix Sentinel - Real Backend Full-Stack Integration", () => {
 
     // Verify Threat Details drawer displays MITRE ATT&CK T1046 mapping
     await expect(page.getByText(/T1046/i).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Network Service Discovery/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Network Service Discovery/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Close the drawer so it doesn't block navigation clicks
     await page.keyboard.press("Escape");

@@ -12,8 +12,6 @@ export default defineConfig({
     },
   },
 
-  plugins: [
-    netlify(),
-  ],
+  plugins: [netlify()],
   // Unit and component test configuration is managed in vitest.config.ts
 });

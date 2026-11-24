@@ -9,7 +9,11 @@ const steps = [
   { icon: Radar, title: "Detect Threats", copy: "13-rule deterministic threat detection engine." },
   { icon: Brain, title: "Risk Scoring", copy: "Normalized scoring and evidence linking." },
   { icon: FileText, title: "Generate Report", copy: "Detailed technical finding summaries." },
-  { icon: ShieldCheck, title: "Take Action", copy: "Contain threats, export findings, and remediate." },
+  {
+    icon: ShieldCheck,
+    title: "Take Action",
+    copy: "Contain threats, export findings, and remediate.",
+  },
 ];
 
 export function Workflow() {

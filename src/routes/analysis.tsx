@@ -157,7 +157,9 @@ function AnalysisWorkspace() {
                         criticalThreats={detail.data?.summary?.criticalThreats}
                         highThreats={detail.data?.summary?.highThreats}
                         overallStatus={detail.data?.summary?.overallStatus}
-                        isDetectionComplete={analysis.status === "COMPLETED" && detail.data?.summary != null}
+                        isDetectionComplete={
+                          analysis.status === "COMPLETED" && detail.data?.summary != null
+                        }
                       />
                     </div>
                   </div>
