@@ -262,6 +262,8 @@
                             <format>JSON</format>
                         </formats>
                         <outputDirectory>${project.build.directory}/dependency-check-reports</outputDirectory>
+                        <dataDirectory>${user.home}/.m2/repository/org/owasp/dependency-check-data</dataDirectory>
+                        <nvdMaxRetryCount>10</nvdMaxRetryCount>
                         <failOnError>false</failOnError>
                     </configuration>
                 </plugin>
