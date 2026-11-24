@@ -218,12 +218,12 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
         if ("s3".equalsIgnoreCase(provider)) {
             StorageProperties.S3Properties s3 = storageProperties != null ? storageProperties.s3() : null;
             String envBucket = environment.getProperty("velorix.storage.s3.bucket");
-            String bucket = (s3 != null && s3.bucket() != null) ? s3.bucket() : envBucket;
+            String bucket = (envBucket != null) ? envBucket : (s3 != null ? s3.bucket() : null);
             if (bucket == null || bucket.isBlank()) {
                 violations.add("velorix.storage.s3.bucket (S3_BUCKET_NAME / SUPABASE_STORAGE_BUCKET) is required when storage provider is 's3'.");
             }
             String envRegion = environment.getProperty("velorix.storage.s3.region");
-            String region = (s3 != null && s3.region() != null) ? s3.region() : envRegion;
+            String region = (envRegion != null) ? envRegion : (s3 != null ? s3.region() : null);
             if (region == null || region.isBlank()) {
                 violations.add("velorix.storage.s3.region (AWS_REGION / S3_REGION) is required when storage provider is 's3'.");
             }

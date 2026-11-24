@@ -344,6 +344,7 @@ class ProductionProfileValidatorUnitTest {
     void s3StorageMissingBucketIsRejected() {
         MockEnvironment env = new MockEnvironment();
         env.setActiveProfiles("prod");
+        env.setProperty("spring.mail.host", "smtp.sendgrid.net");
         env.setProperty("velorix.storage.s3.bucket", "   ");
 
         JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", null, null, null, null);
