@@ -133,5 +133,65 @@ describe("Frontend Netlify Security Headers & CSP (Task 5.4, H8)", () => {
         "connect-src 'self' https://velorix-sentinel-backend.onrender.com https://*.supabase.co",
       );
     });
+
+    test("prohibits unsafe-eval and wildcard hostnames in CSP", () => {
+      expect(headersContent).not.toContain("'unsafe-eval'");
+      expect(tomlContent).not.toContain("'unsafe-eval'");
+      expect(headersContent).not.toContain("https://*.onrender.com");
+      expect(tomlContent).not.toContain("https://*.onrender.com");
+    });
+  });
+
+  describe("Staging Environment CSP Separation & Generator (Task 8.1)", () => {
+    test("netlify.toml defines context.staging headers with staging backend origin", () => {
+      expect(tomlContent).toContain("[context.staging]");
+      expect(tomlContent).toContain("[context.staging.headers]");
+      expect(tomlContent).toContain(
+        "connect-src 'self' https://velorix-sentinel-backend-staging.onrender.com https://*.supabase.co",
+      );
+    });
+
+    test("staging context in netlify.toml does NOT contain production backend host", () => {
+      const stagingBlockMatch = tomlContent.match(
+        /\[context\.staging\.headers\][\s\S]*?Content-Security-Policy\s*=\s*"([^"]+)"/,
+      );
+      expect(stagingBlockMatch).not.toBeNull();
+      const stagingCsp = stagingBlockMatch![1];
+      expect(stagingCsp).toContain("https://velorix-sentinel-backend-staging.onrender.com");
+      expect(stagingCsp).not.toContain("https://velorix-sentinel-backend.onrender.com");
+      expect(stagingCsp).not.toContain("https://*.onrender.com");
+    });
+
+    test("generate-headers derives staging origin from VITE_API_BASE_URL", async () => {
+      const {
+        buildContentSecurityPolicy,
+        resolveBackendOrigin,
+        STAGING_BACKEND_ORIGIN,
+        PRODUCTION_BACKEND_ORIGIN,
+      } = await import("../../scripts/generate-headers.js");
+
+      // Staging URL input
+      const stagingOrigin = resolveBackendOrigin(
+        "https://velorix-sentinel-backend-staging.onrender.com/api",
+      );
+      expect(stagingOrigin).toBe(STAGING_BACKEND_ORIGIN);
+
+      const stagingCsp = buildContentSecurityPolicy(
+        "https://velorix-sentinel-backend-staging.onrender.com/api",
+      );
+      expect(stagingCsp).toContain(
+        `connect-src 'self' ${STAGING_BACKEND_ORIGIN} https://*.supabase.co;`,
+      );
+      expect(stagingCsp).not.toContain(PRODUCTION_BACKEND_ORIGIN);
+      expect(stagingCsp).not.toContain("https://*.onrender.com");
+
+      // Default fallback
+      const defaultOrigin = resolveBackendOrigin("");
+      expect(defaultOrigin).toBe(PRODUCTION_BACKEND_ORIGIN);
+      const defaultCsp = buildContentSecurityPolicy("");
+      expect(defaultCsp).toContain(
+        `connect-src 'self' ${PRODUCTION_BACKEND_ORIGIN} https://*.supabase.co;`,
+      );
+    });
   });
 });

@@ -3,7 +3,7 @@
 **AI-powered deep packet inspection & network threat detection.**
 A product of **Velorix Technologies**.
 
-Velorix Sentinel inspects live traffic and PCAP captures, correlates signals across the
+Velorix Sentinel inspects PCAP and PCAPNG captures, correlates signals across the
 estate and turns raw frames into prioritised, analyst-ready intelligence — with automated
 IOC extraction, risk scoring and remediation guidance.
 
@@ -112,6 +112,30 @@ The production profile activates `application-prod.yml` and triggers `Production
 - `FRONTEND_BASE_URL` uses HTTPS and does not point to localhost.
 - `CORS_ALLOWED_ORIGINS` specifies explicit, exact production HTTPS origins (wildcards prohibited).
 - Swagger UI and OpenAPI documentation are disabled by default.
+
+## Staging Environment
+
+Velorix Sentinel maintains a staging environment replicating all production security controls, Supabase PostgreSQL persistence, object storage, and strict profile validation.
+
+For the complete step-by-step provisioning runbook, environment variable matrix, and troubleshooting guide, see:
+- [Staging Setup Runbook](file:///docs/STAGING_SETUP.md)
+- [Staging Environment Record](file:///docs/STAGING_ENVIRONMENT_RECORD.md)
+- [Staging Preflight Verification Script (Bash)](file:///scripts/staging-preflight.sh)
+- [Staging Preflight Verification Script (PowerShell)](file:///scripts/staging-preflight.ps1)
+
+To run the automated preflight test suite against deployed staging infrastructure:
+
+```sh
+# POSIX Bash:
+./scripts/staging-preflight.sh \
+  https://velorix-sentinel-staging.netlify.app \
+  https://velorix-sentinel-backend-staging.onrender.com
+
+# Windows PowerShell:
+.\scripts\staging-preflight.ps1 `
+  -FrontendUrl https://velorix-sentinel-staging.netlify.app `
+  -BackendUrl https://velorix-sentinel-backend-staging.onrender.com
+```
 
 ---
 

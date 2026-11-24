@@ -81,6 +81,7 @@ velorix:
   mail:
     from: ${MAIL_FROM:noreply@velorix.com}
     from-name: ${MAIL_FROM_NAME:Velorix Sentinel}
+    allow-logging-fallback: ${ALLOW_LOGGING_EMAIL_FALLBACK:false}
   app:
     # Public URL of the Velorix Sentinel web console; used to build email links.
     frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:8080}
@@ -90,6 +91,7 @@ velorix:
     short-lived-refresh-expiration: ${SHORT_LIVED_REFRESH_EXPIRATION:PT12H}
   storage:
     provider: ${VELORIX_STORAGE_PROVIDER:filesystem}
+    allow-filesystem-storage: ${ALLOW_FILESYSTEM_STORAGE:false}
     # Root directory of the local capture store when provider=filesystem.
     location: ${CAPTURE_STORAGE_LOCATION:./data/captures}
     max-file-size: ${CAPTURE_MAX_FILE_SIZE:100MB}

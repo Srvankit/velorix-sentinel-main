@@ -51,7 +51,10 @@ class ProductionProfileValidatorIntegrationTest {
                         "spring.datasource.driver-class-name=org.postgresql.Driver",
                         "velorix.app.frontend-base-url=https://velorixsentinel.netlify.app",
                         "velorix.cors.allowed-origins=https://velorixsentinel.netlify.app",
-                        "velorix.storage.provider=filesystem",
+                        "velorix.storage.provider=s3",
+                        "velorix.storage.s3.bucket=velorix-captures-staging",
+                        "velorix.storage.s3.region=us-east-1",
+                        "spring.mail.host=smtp.sendgrid.net",
                         "spring.flyway.clean-disabled=true"
                 )
                 .run(context -> {
