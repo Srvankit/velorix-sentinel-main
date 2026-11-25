@@ -62,3 +62,8 @@ playwright/.cache/
 
 # Local upload capture storage
 data/
+
+# Disaster recovery database backups
+backups/
+scripts/dr/backups/
+*.dump
