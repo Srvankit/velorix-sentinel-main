@@ -23,6 +23,8 @@
 | **Email Verified Sender** | Provider / DNS | `noreply@staging.velorix.net` | `YYYY-MM-DD` | `[Pending / Active]` |
 | **Google OAuth Client ID** | Google Cloud | `[staging-client-id].apps.googleusercontent.com` | `YYYY-MM-DD` | `[Pending / Active]` |
 | **GitHub OAuth Client ID**| GitHub Developers| `[staging-client-id]` | `YYYY-MM-DD` | `[Pending / Active]` |
+| **Database Backup & PITR** | Supabase | `[Daily / PITR Enabled / Manual Dump]` | `YYYY-MM-DD` | `[Pending / Active]` |
+| **S3 Capture Bucket Backup** | Supabase Storage / S3 | `[Periodic Sync / Secondary Bucket / Manual]` | `YYYY-MM-DD` | `[Pending / Active]` |
 
 ---
 

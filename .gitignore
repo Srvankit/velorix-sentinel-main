@@ -63,7 +63,7 @@ playwright/.cache/
 # Local upload capture storage
 data/
 
-# Staging verification harness
-scripts/staging-verify/output/
-scripts/staging-verify/scratch/
-scripts/staging-verify/.persistence-state.json
+# Disaster recovery database backups
+backups/
+scripts/dr/backups/
+*.dump

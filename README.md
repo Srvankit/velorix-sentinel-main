@@ -148,6 +148,17 @@ To run the automated preflight test suite against deployed staging infrastructur
   -BackendUrl https://velorix-sentinel-backend-staging.onrender.com
 ```
 
+## Disaster Recovery & Backups
+
+Velorix Sentinel maintains automated backup procedures, Point-in-Time Recovery (PITR) documentation, disaster playbooks, and verification tooling:
+- [Disaster Recovery Runbook](file:///RUNBOOK_DISASTER_RECOVERY.md)
+- [Disaster Recovery Drill Log Template](file:///docs/DR_DRILL_LOG.md)
+- [Local Rehearsal & Verification Report](file:///docs/DR_DRILL_RESULTS_LOCAL.md)
+- [Database Backup Script (Bash)](file:///scripts/dr/backup-db.sh) / [PowerShell](file:///scripts/dr/backup-db.ps1)
+- [Database Restore Script (Bash)](file:///scripts/dr/restore-db.sh) / [PowerShell](file:///scripts/dr/restore-db.ps1)
+- [Database Integrity Verification SQL](file:///scripts/dr/verify-integrity.sql)
+- [Storage Reconciliation Tool](file:///scripts/dr/reconcile-storage.ts)
+
 ---
 
 Built by Velorix Technologies.
