@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-    Velorix Sentinel — Database Restore Script (PowerShell 5.1 / Windows).
+    Velorix Sentinel -- Database Restore Script (PowerShell 5.1 / Windows).
     Task 8.3: Disaster Recovery Database Restore Utility.
 
 .DESCRIPTION
@@ -31,29 +31,28 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ------------------------------------------------------------------------------
-# 1. HARD SAFETY GUARD (Runs BEFORE ANY Docker, psql, or network action)
+# 1. HARD SAFETY GUARD (STRICT ALLOWLIST - Runs BEFORE ANY Docker/psql action)
 # ------------------------------------------------------------------------------
 $lowerHost = $HostName.ToLowerInvariant().Trim()
 
-$isLocal = ($lowerHost -eq "localhost" -or $lowerHost -eq "127.0.0.1" -or $lowerHost -eq "::1" -or $lowerHost -eq "host.docker.internal")
+# STRICT ALLOWLIST: Only exact local targets permitted without explicit force flag
+$allowedHosts = @("localhost", "127.0.0.1", "::1", "host.docker.internal")
+$isAllowed = $allowedHosts -contains $lowerHost
+$isLocal = $isAllowed
 
-$isDangerous = (-not $isLocal)
-if ($lowerHost -match "(supabase|render|onrender|pooler|velorix|prod|production|staging)") {
-    $isDangerous = $true
-}
-
-if ($isDangerous -and -not $ForceRemoteRestore) {
+if (-not $isAllowed -and -not $ForceRemoteRestore) {
     Write-Host ""
     Write-Host "==============================================================================" -ForegroundColor Red
-    Write-Host "🛑 CRITICAL SAFETY GUARD REFUSAL: NON-LOCAL RESTORE BLOCKED" -ForegroundColor Red
+    Write-Host "CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED" -ForegroundColor Red
     Write-Host "==============================================================================" -ForegroundColor Red
-    Write-Host "Target Host: '$HostName' appears to be a remote, staging, or production database!" -ForegroundColor Yellow
+    Write-Host "Target Host: '$HostName' is NOT in the local allowlist!" -ForegroundColor Yellow
+    Write-Host "Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal"
     Write-Host ""
-    Write-Host "Refusing to execute restore because restoring over an active cloud database will"
-    Write-Host "OVERWRITE or DROP existing data tables."
+    Write-Host "Refusing to execute restore. Restoring over any remote, shared, or unverified"
+    Write-Host "database host risks OVERWRITING or DROPPING existing database tables."
     Write-Host ""
     Write-Host "If this is a genuine disaster recovery operation against a newly provisioned"
-    Write-Host "recovery database, you MUST re-run with the explicit confirmation switch:"
+    Write-Host "recovery database, you MUST pass the explicit confirmation switch:"
     Write-Host "   -ForceRemoteRestore" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Example:"
@@ -93,7 +92,7 @@ if (-not (Get-Command "pg_restore" -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "🛡️  VELORIX SENTINEL — DATABASE RESTORE (pg_restore)" -ForegroundColor Cyan
+Write-Host "VELORIX SENTINEL -- DATABASE RESTORE (pg_restore)" -ForegroundColor Cyan
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host "Target Host:     $HostName"
 Write-Host "Target Port:     $Port"
@@ -140,7 +139,7 @@ if ($isLocal) {
             & docker rm -f $containerName 2>&1 | Out-Null
             & docker run -d --name $containerName -p "${Port}:5432" -e POSTGRES_PASSWORD="drillpassword" postgres:16 | Out-Null
             Start-Sleep -Seconds 3
-            Write-Host "✅ Isolated container launched."
+            Write-Host "[OK] Isolated container launched."
             if (-not $Password) { $Password = "drillpassword" }
         } else {
             Write-Error "Docker daemon is unavailable, and local target $($HostName):$Port is unreachable.`nEnsure local PostgreSQL or Docker is running, or specify a reachable host."
@@ -174,7 +173,7 @@ try {
     $elapsedSec = [math]::Round($startTime.Elapsed.TotalSeconds, 2)
 
     Write-Host "------------------------------------------------------------------------------"
-    Write-Host "✅ RESTORE COMPLETED IN ${elapsedSec}s" -ForegroundColor Green
+    Write-Host "[OK] RESTORE COMPLETED IN ${elapsedSec}s" -ForegroundColor Green
     Write-Host "Target:        $($HostName):$Port/$Database"
     Write-Host "Completed At:  $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ssZ'))"
     Write-Host ""

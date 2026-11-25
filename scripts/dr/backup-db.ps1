@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Velorix Sentinel — Database Backup Script (PowerShell 5.1 / Windows).
+    Velorix Sentinel -- Database Backup Script (PowerShell 5.1 / Windows).
     Task 8.3: Disaster Recovery Database Dump Utility.
 
 .DESCRIPTION
@@ -76,7 +76,7 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $outputFile = Join-Path $OutputDir "velorix_db_${timestamp}.dump"
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "🛡️  VELORIX SENTINEL — DATABASE BACKUP (pg_dump)" -ForegroundColor Cyan
+Write-Host "VELORIX SENTINEL -- DATABASE BACKUP (pg_dump)" -ForegroundColor Cyan
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host "Host:         $HostName"
 Write-Host "Port:         $Port"
@@ -115,7 +115,7 @@ try {
         $sizeMB = [math]::Round($sizeBytes / (1024 * 1024), 2)
 
         Write-Host "------------------------------------------------------------------------------"
-        Write-Host "✅ BACKUP COMPLETED SUCCESSFULLY" -ForegroundColor Green
+        Write-Host "[OK] BACKUP COMPLETED SUCCESSFULLY" -ForegroundColor Green
         Write-Host "Dump File:     $outputFile"
         Write-Host "Size:          $sizeBytes bytes (~$sizeMB MB)"
         Write-Host "Duration:      ${elapsedSec}s"

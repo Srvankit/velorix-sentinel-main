@@ -24,9 +24,9 @@ This runbook defines the disaster recovery (DR) procedures for Velorix Sentinel 
 
 | Mechanism | Achievable RPO | Achievable RTO | Supabase Plan Required | Mechanism Description | Verification in Dashboard |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| **Daily Automated Backups** | `< 24 hours` | `10–15 min` | **Free Tier** (7-day retention)<br>**Pro Tier** (7-day retention) | Managed daily physical snapshot taken by Supabase. Free tier projects pause after 7 days of inactivity. | *Project Settings > Database > Backups > Scheduled Backups* |
-| **Point-in-Time Recovery (PITR)** | `< 1 minute` *(down to seconds)* | `10–20 min` | **Pro Tier + PITR Add-on**<br>*(or Team/Enterprise)* | Continuous physical WAL (Write-Ahead Log) archiving enabling restoration to any precise second up to 7–30 days back. | *Project Settings > Database > Backups > Point in Time* |
-| **Manual / Scheduled `pg_dump`** | `= Dump Interval`<br>*(e.g., 6h, 1h)* | `5–15 min` | **All Plans**<br>*(Free, Pro, Team, Enterprise)* | Automated custom-format dump (`pg_dump -Fc --no-owner --no-privileges`) executed via session pooler port 5432. | Run `scripts/dr/backup-db.sh` or `.ps1` |
+| **Manual / Scheduled `pg_dump`**<br>*(Default for Free Tier)* | `= Dump Interval`<br>*(e.g., daily, 6h)* | `5–15 min` | **All Plans (Free Tier Default)**<br>*(Free, Pro, Team, Enterprise)* | Automated custom-format dump (`pg_dump -Fc --no-owner --no-privileges`) executed via session pooler port 5432. Mandatory default for Free tier where managed backups are not guaranteed. | Run `scripts/dr/backup-db.sh` or `.ps1` |
+| **Daily Automated Backups** | `< 24 hours` | `10–15 min` | **Pro Tier** *(7-day retention)*<br>*(Verify in dashboard)* | Managed daily physical snapshot taken by Supabase. Note: Free tier projects do not offer guaranteed automated backup restore SLAs and pause after 7 days of inactivity. | *Project Settings > Database > Backups > Scheduled Backups* |
+| **Point-in-Time Recovery (PITR)** | `< 1 minute` *(down to seconds)* | `10–20 min` | **Pro Tier + PITR Add-on**<br>*(or Team/Enterprise)* | Continuous physical WAL (Write-Ahead Log) archiving enabling restoration to any precise second up to 7–30 days back. *(Verify in dashboard)* | *Project Settings > Database > Backups > Point in Time* |
 | **Storage Object Bucket Replication** | `= Sync Interval`<br>*(e.g., 1h, 24h)* | `10–20 min` | **All Plans** | Scheduled cross-bucket or cross-cloud sync (`aws s3 sync`) to secondary bucket or Cloudflare R2 / AWS S3. | Supabase Dashboard > Storage |
 
 ---
@@ -37,7 +37,7 @@ Not all system components reside in the primary database. The following matrix d
 
 | Asset / Component | Primary Storage Location | Automatically Backed Up? | Recovery Path & Strategy | Responsible Owner |
 | :--- | :--- | :---: | :--- | :--- |
-| **PostgreSQL Application Data** | Supabase Postgres 16 (`users`, `refresh_tokens`, `analyses`, `threats`, etc.) | **YES** (Supabase daily backup or PITR) | Restore via Supabase Dashboard PITR, or restore dump file with `scripts/dr/restore-db.sh` / `.ps1`. | Lead DBA / DevOps |
+| **PostgreSQL Application Data** | Supabase Postgres 16 (`users`, `refresh_tokens`, `analyses`, `threats`, etc.) | **CONDITIONAL** (Pro tier: daily backup/PITR; Free tier: manual `pg_dump` required — verify in dashboard) | Restore via Supabase Dashboard PITR, or restore dump file with `scripts/dr/restore-db.sh` / `.ps1`. | Lead DBA / DevOps |
 | **Capture PCAP/PCAPNG Files** | Supabase Storage (`velorix-captures` / S3 bucket) | **NO** (Not part of database backups) | Restore from secondary replica bucket or rerun `reconcile-storage` to identify missing captures. | DevOps / SRE |
 | **Backend Configuration & Secrets** | Render Dashboard Environment Variables | **NO** (Render does not version env vars) | Re-apply from authoritative offline inventory (`backend/.env.staging.example` / secrets vault). | Backend Lead |
 | **Frontend Configuration & Headers** | Netlify Dashboard & Git (`netlify.toml`) | **YES** (Tracked in Git repository) | Automatic via `git push` or Netlify deployment rollback. | Frontend Lead |
@@ -57,20 +57,24 @@ Not all system components reside in the primary database. The following matrix d
    - Always connect via the Supabase **Session Pooler** (`aws-0-[region].pooler.supabase.com:5432`), using username `postgres.[project-ref]`.
    - **DO NOT** use the direct host if your network lacks IPv6 routing (Supabase direct host is IPv6-only on AWS).
    - **DO NOT** use the Transaction Pooler (port 6543) for `pg_dump` or `pg_restore` because session-level prepared statements and catalog queries will fail.
+3. **Free Tier Backup Clarification (Verify in Dashboard):**
+   - The Supabase Free Tier does **not** provide guaranteed automated backup restore SLAs and pauses after 7 days of inactivity.
+   - Operators using Free Tier projects must **verify backup availability in the dashboard** (**Project Settings > Database > Backups**) and rely on scheduled manual `pg_dump` via `scripts/dr/backup-db.sh` or `scripts/dr/backup-db.ps1` as the primary and mandatory backup mechanism.
 
 ### 3.2 Storage Bucket Protection & Versioning
 - **Supabase Storage S3 Versioning Status:** As of current Supabase Storage capabilities, native S3 object versioning is **not** exposed via the Supabase S3 API. *(Verify against current Supabase Storage docs)*.
 - **Recommended Protection Strategy:**
-  1. Configure a recurring scheduled task (e.g. GitHub Actions or cron worker) running:
-     ```bash
-     aws s3 sync s3://velorix-captures s3://velorix-captures-backup --endpoint-url "$S3_ENDPOINT"
-     ```
-  2. Implement an automated cold-archive copy to Cloudflare R2 or AWS S3 Glacier.
-  3. Set lifecycle rules preventing accidental bucket deletion.
+   1. Configure a recurring scheduled task (e.g. GitHub Actions or cron worker) running:
+      ```bash
+      aws s3 sync s3://velorix-captures s3://velorix-captures-backup --endpoint-url "$S3_ENDPOINT"
+      ```
+   2. Implement an automated cold-archive copy to Cloudflare R2 or AWS S3 Glacier.
+   3. Set lifecycle rules preventing accidental bucket deletion.
 
 ### 3.3 Manual & Scheduled `pg_dump` Cadence
-For environments where PITR is not enabled, execute automated dumps according to this schedule:
-- **Production:** Every 6 hours, retaining 30 daily snapshots.
+For environments where managed PITR is not enabled, execute automated dumps according to this schedule:
+- **Free Tier (Mandatory Default):** Daily automated dumps or on-demand before any configuration or schema changes (mandatory default because managed backups are not guaranteed).
+- **Production (Pro/Team):** Every 6 hours, retaining 30 daily snapshots.
 - **Staging:** Daily, retaining 7 days of snapshots.
 - **Pre-Migration:** Immediately before applying any major Flyway database migration.
 
@@ -272,6 +276,12 @@ For environments where PITR is not enabled, execute automated dumps according to
          updated_at = NOW() 
      WHERE revoked = FALSE;
      ```
+   - *Schema & Repository Verification:*
+     - `revoked`: `BOOLEAN NOT NULL DEFAULT FALSE` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:30`).
+     - `revoked_at`: `TIMESTAMPTZ` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:31`).
+     - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT NOW()` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:35`).
+     - Application equivalent: `RefreshTokenRepository.java:36` (`int revokeAllForUser(@Param("userId") UUID userId, @Param("now") Instant now)`).
+     - Live execution status: **`UNVERIFIED - needs first real run`** (Docker / PostgreSQL daemon unavailable in local rehearsal environment).
    - *Result:* All user sessions are terminated. Every user must log in again with credentials or OAuth.
 4. **Verification:**
    - Attempt to call `/api/v1/auth/refresh` with an old refresh token &rarr; Must return `HTTP 401 Unauthorized`.
@@ -295,16 +305,28 @@ SET revoked = TRUE,
     updated_at = NOW() 
 WHERE user_id = '<TARGET_USER_UUID>' AND revoked = FALSE;
 ```
+- *Schema & Repository Verification:*
+  - `user_id`: `UUID NOT NULL` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:27`, foreign key to `users(id)`).
+  - Application equivalent: `RefreshTokenRepository.java:36` (`revokeAllForUser`).
+  - Live execution status: **`UNVERIFIED - needs first real run`**.
 
 **Option 2: Revoke by Token Family (Terminates single compromised device chain):**
 ```sql
--- Migration V12 family tracking column
 UPDATE refresh_tokens 
 SET revoked = TRUE, 
     revoked_at = NOW(), 
     updated_at = NOW() 
 WHERE family_id = '<TARGET_FAMILY_UUID>' AND revoked = FALSE;
 ```
+- *Schema & Repository Verification:*
+  - `family_id`: `UUID NOT NULL` (added in `backend/src/main/resources/db/migration/V12__refresh_token_family_and_reuse_detection.sql:7,14` with index `idx_refresh_tokens_family_id` at line 16).
+  - Application equivalent: `RefreshTokenRepository.java:31`:
+    ```java
+    @Modifying
+    @Query("UPDATE RefreshToken rt SET rt.revoked = true, rt.revokedAt = :now WHERE rt.familyId = :familyId AND rt.revoked = false")
+    int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
+    ```
+  - Live execution status: **`UNVERIFIED - needs first real run`**.
 
 *Note on Automatic Protection:* Under `RefreshTokenServiceImpl.java:122`, if an attacker replays an already-revoked refresh token, the backend's automatic reuse detection automatically revokes the entire `family_id` and records an `ActivityType.TOKEN_REVOKED` audit log.
 

@@ -83,38 +83,30 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ------------------------------------------------------------------------------
-# 2. HARD SAFETY GUARD (Runs BEFORE ANY Docker, psql, or network action)
+# 2. HARD SAFETY GUARD (STRICT ALLOWLIST - Runs BEFORE ANY Docker/psql action)
 # ------------------------------------------------------------------------------
 LOWER_HOST=$(echo "$TARGET_HOST" | tr '[:upper:]' '[:lower:]')
 
-# Check if target host looks like a remote, staging, production, or cloud host
-IS_LOCAL=false
+# STRICT ALLOWLIST: Only exact local targets permitted without explicit force flag
+IS_ALLOWED=false
 if [[ "$LOWER_HOST" == "localhost" || "$LOWER_HOST" == "127.0.0.1" || "$LOWER_HOST" == "::1" || "$LOWER_HOST" == "host.docker.internal" ]]; then
-  IS_LOCAL=true
+  IS_ALLOWED=true
 fi
+IS_LOCAL="$IS_ALLOWED"
 
-IS_DANGEROUS=false
-if [[ "$IS_LOCAL" != "true" ]]; then
-  IS_DANGEROUS=true
-fi
-
-# Explicit pattern match for remote / managed hosts
-if [[ "$LOWER_HOST" =~ (supabase|render|onrender|pooler|velorix|prod|production|staging) ]]; then
-  IS_DANGEROUS=true
-fi
-
-if [[ "$IS_DANGEROUS" == "true" && "$FORCE_REMOTE_RESTORE" != "true" ]]; then
+if [[ "$IS_ALLOWED" != "true" && "$FORCE_REMOTE_RESTORE" != "true" ]]; then
   echo "" >&2
   echo "==============================================================================" >&2
-  echo "🛑 CRITICAL SAFETY GUARD REFUSAL: NON-LOCAL RESTORE BLOCKED" >&2
+  echo "🛑 CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED" >&2
   echo "==============================================================================" >&2
-  echo "Target Host: '$TARGET_HOST' appears to be a remote, staging, or production database!" >&2
+  echo "Target Host: '$TARGET_HOST' is NOT in the local allowlist!" >&2
+  echo "Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal" >&2
   echo "" >&2
-  echo "Refusing to execute restore because restoring over an active cloud database will" >&2
-  echo "OVERWRITE or DROP existing data tables." >&2
+  echo "Refusing to execute restore. Restoring over any remote, shared, or unverified" >&2
+  echo "database host risks OVERWRITING or DROPPING existing database tables." >&2
   echo "" >&2
   echo "If this is a genuine disaster recovery operation against a newly provisioned" >&2
-  echo "recovery database, you MUST re-run with the explicit confirmation flag:" >&2
+  echo "recovery database, you MUST pass the explicit confirmation flag:" >&2
   echo "   --force-remote-restore" >&2
   echo "" >&2
   echo "Example:" >&2

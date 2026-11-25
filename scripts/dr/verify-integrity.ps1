@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Velorix Sentinel — Integrity Verification Runner (PowerShell 5.1 / Windows).
+    Velorix Sentinel -- Integrity Verification Runner (PowerShell 5.1 / Windows).
     Task 8.3: Post-Restore Database Consistency Check Runner.
 #>
 
@@ -41,7 +41,7 @@ if (-not (Get-Command "psql" -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "🛡️  RUNNING POST-RESTORE INTEGRITY VERIFICATION" -ForegroundColor Cyan
+Write-Host "RUNNING POST-RESTORE INTEGRITY VERIFICATION" -ForegroundColor Cyan
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host "Target Host: $($HostName):$Port"
 Write-Host "Database:    $Database"

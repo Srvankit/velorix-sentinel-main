@@ -3,39 +3,48 @@
  * Velorix Sentinel — Storage Reconciliation Tool (Read-Only).
  * Task 8.3: Disaster Recovery Capture Storage Integrity Reconciler.
  *
- * Compares capture metadata in PostgreSQL (uploaded_files table) against
+ * Compares active capture metadata in PostgreSQL (uploaded_files table) against
  * physical objects in the S3-compatible cloud storage bucket (Supabase Storage / S3).
+ *
+ * S3 COMMUNICATION:
+ *   Uses @aws-sdk/client-s3 (S3Client, ListObjectsV2Command) to query the bucket
+ *   over HTTPS with pagination, supporting Supabase Storage S3 endpoint and path-style access.
+ *
+ * SOFT-DELETE EXCLUSION:
+ *   In Velorix Sentinel, when a user deletes a capture, the binary is deleted from S3
+ *   and the database row is marked with upload_status = 'DELETED' (soft delete).
+ *   Soft-deleted rows are explicitly excluded from expected storage keys.
+ *
+ * KEY-BUILDING ALIGNMENT:
+ *   Key-building logic matches backend S3CompatibleFileStorageService.java (resolveObjectKey):
+ *   - Normalizes backslashes to forward slashes.
+ *   - Strips leading forward slashes.
+ *   - Rejects directory traversal (..).
+ *   - Prepends S3_PREFIX (default: captures/).
  *
  * READ-ONLY: Never deletes or modifies any file in storage or database.
  *
  * USAGE:
  *   bun run scripts/dr/reconcile-storage.ts [options]
- *
- * ENVIRONMENT VARIABLES (Identical to backend application contracts):
- *   Database:
- *     DR_DB_HOST / SUPABASE_DB_HOST
- *     DR_DB_PORT / SUPABASE_DB_PORT (default: 5432)
- *     DR_DB_NAME / SUPABASE_DB_NAME (default: postgres)
- *     DR_DB_USER / SUPABASE_DB_USERNAME
- *     DR_DB_PASSWORD / PGPASSWORD / SUPABASE_DB_PASSWORD
- *
- *   S3 / Supabase Storage:
- *     S3_BUCKET_NAME / SUPABASE_STORAGE_BUCKET (default: velorix-captures)
- *     S3_ENDPOINT / SUPABASE_STORAGE_S3_ENDPOINT
- *     AWS_REGION / S3_REGION (default: us-east-1)
- *     AWS_ACCESS_KEY_ID / S3_ACCESS_KEY
- *     AWS_SECRET_ACCESS_KEY / S3_SECRET_KEY
- *     S3_PREFIX (default: captures/)
+ *   node scripts/dr/reconcile-storage.ts [options]
  */
 
 import { execSync } from "node:child_process";
 import { parseArgs } from "node:util";
+import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+
+export interface DbCaptureRecord {
+  storedFileName: string;
+  uploadStatus: string;
+}
 
 export interface StorageReconciliationReport {
   timestamp: string;
   bucket: string;
   prefix: string;
   totalDbRecords: number;
+  activeDbRecords: number;
+  softDeletedRecords: number;
   totalS3Objects: number;
   matchedCount: number;
   missingInS3: string[];
@@ -43,7 +52,7 @@ export interface StorageReconciliationReport {
   durationMs: number;
 }
 
-function resolveConfig() {
+export function resolveConfig() {
   const env = process.env;
 
   const bucket = env.S3_BUCKET_NAME || env.SUPABASE_STORAGE_BUCKET || "velorix-captures";
@@ -71,22 +80,50 @@ function resolveConfig() {
 }
 
 /**
- * Fetches stored_file_name records from uploaded_files table using psql.
+ * Resolves storage key to S3 object key matching S3CompatibleFileStorageService.java (resolveObjectKey).
  */
-export function fetchDatabaseStorageKeys(config: ReturnType<typeof resolveConfig>): string[] {
-  const query = `SELECT stored_file_name FROM uploaded_files WHERE stored_file_name IS NOT NULL;`;
+export function resolveS3Key(storageKey: string, prefix = "captures/"): string {
+  if (!storageKey || !storageKey.trim()) {
+    throw new Error("A storage key is required");
+  }
+  let cleanKey = storageKey.replace(/\\/g, "/").trim();
+  while (cleanKey.startsWith("/")) {
+    cleanKey = cleanKey.substring(1);
+  }
+  if (cleanKey.includes("..")) {
+    throw new Error(`Illegal storage key: directory traversal rejected (${storageKey})`);
+  }
+  if (!prefix || !prefix.trim()) {
+    return cleanKey;
+  }
+  return `${prefix}${cleanKey}`;
+}
+
+/**
+ * Fetches capture records from PostgreSQL using psql CLI.
+ * Returns both active and soft-deleted records for complete visibility.
+ */
+export function fetchDatabaseRecords(config: ReturnType<typeof resolveConfig>): DbCaptureRecord[] {
+  const query = `SELECT stored_file_name, upload_status FROM uploaded_files WHERE stored_file_name IS NOT NULL;`;
   const env = { ...process.env, PGPASSWORD: config.db.password };
 
   try {
     const output = execSync(
-      `psql -h "${config.db.host}" -p "${config.db.port}" -U "${config.db.user}" -d "${config.db.name}" -t -A -c "${query}"`,
+      `psql -h "${config.db.host}" -p "${config.db.port}" -U "${config.db.user}" -d "${config.db.name}" -t -A -F "|" -c "${query}"`,
       { env, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
 
     return output
       .split("\n")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const [storedFileName, uploadStatus] = line.split("|");
+        return {
+          storedFileName: storedFileName || "",
+          uploadStatus: uploadStatus || "UPLOADED",
+        };
+      });
   } catch (err: unknown) {
     const error = err as Error;
     console.warn(`⚠️ Warning: Could not query database directly (${error.message.trim()}).`);
@@ -95,62 +132,99 @@ export function fetchDatabaseStorageKeys(config: ReturnType<typeof resolveConfig
 }
 
 /**
- * Fetches object keys from S3 using AWS CLI if installed.
+ * Fetches object keys from S3 using @aws-sdk/client-s3 with pagination.
  */
-export function fetchS3ObjectKeys(config: ReturnType<typeof resolveConfig>): string[] {
-  if (!config.endpoint && !config.accessKey) {
-    console.warn("⚠️ S3 credentials or endpoint not set. S3 listing skipped.");
+export async function fetchS3ObjectKeys(
+  config: ReturnType<typeof resolveConfig>,
+): Promise<string[]> {
+  if (!config.accessKey || !config.secretKey) {
+    console.warn(
+      "⚠️ S3 credentials not set (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY). S3 listing skipped.",
+    );
     return [];
   }
 
+  const s3Client = new S3Client({
+    region: config.region,
+    endpoint: config.endpoint || undefined,
+    credentials: {
+      accessKeyId: config.accessKey,
+      secretAccessKey: config.secretKey,
+    },
+    forcePathStyle: true,
+  });
+
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
   try {
-    let cmd = `aws s3api list-objects-v2 --bucket "${config.bucket}" --query "Contents[].Key" --output json`;
-    if (config.endpoint) {
-      cmd += ` --endpoint-url "${config.endpoint}"`;
-    }
-    if (config.prefix) {
-      cmd += ` --prefix "${config.prefix}"`;
-    }
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: config.bucket,
+        Prefix: config.prefix || undefined,
+        ContinuationToken: continuationToken,
+      });
 
-    const env = {
-      ...process.env,
-      AWS_ACCESS_KEY_ID: config.accessKey,
-      AWS_SECRET_ACCESS_KEY: config.secretKey,
-      AWS_DEFAULT_REGION: config.region,
-    };
+      const response = await s3Client.send(command);
+      if (response.Contents) {
+        for (const item of response.Contents) {
+          if (item.Key) {
+            keys.push(item.Key);
+          }
+        }
+      }
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
 
-    const output = execSync(cmd, { env, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-    const parsed = JSON.parse(output || "[]");
-    if (Array.isArray(parsed)) {
-      return parsed.filter(Boolean);
-    }
-    return [];
+    return keys;
   } catch (err: unknown) {
     const error = err as Error;
-    console.warn(`⚠️ Warning: Could not query S3 bucket (${error.message.trim()}).`);
+    console.warn(`⚠️ Warning: Failed to query S3 bucket via AWS SDK (${error.message.trim()}).`);
     return [];
   }
 }
 
 /**
- * Pure comparison logic between database keys and S3 keys.
+ * Pure comparison logic between database capture records and S3 object keys.
+ * Excludes soft-deleted database records (upload_status = 'DELETED').
  */
 export function reconcileStorageKeys(
-  dbStoredFileNames: string[],
+  dbRecords: DbCaptureRecord[] | string[],
   s3ObjectKeys: string[],
   prefix = "captures/",
 ): {
+  activeDbCount: number;
+  softDeletedCount: number;
   matchedCount: number;
   missingInS3: string[];
   orphanedInS3: string[];
 } {
-  // Database stored_file_name values resolve to S3 keys as: prefix + stored_file_name
-  const expectedS3Keys = new Set(
-    dbStoredFileNames.map((name) => {
-      const clean = name.replace(/^[/\\]+/, "");
-      return prefix ? `${prefix}${clean}` : clean;
-    }),
-  );
+  // Normalize string array input to DbCaptureRecord objects for backward compatibility
+  const normalizedRecords: DbCaptureRecord[] = dbRecords.map((item) => {
+    if (typeof item === "string") {
+      return { storedFileName: item, uploadStatus: "UPLOADED" };
+    }
+    return item;
+  });
+
+  // Separate active from soft-deleted records
+  const activeRecords = normalizedRecords.filter((r) => r.uploadStatus !== "DELETED");
+  const softDeletedRecords = normalizedRecords.filter((r) => r.uploadStatus === "DELETED");
+
+  // Build expected S3 keys using backend key-building logic
+  const expectedS3Keys = new Set<string>();
+  for (const record of activeRecords) {
+    if (record.storedFileName) {
+      try {
+        const s3Key = resolveS3Key(record.storedFileName, prefix);
+        expectedS3Keys.add(s3Key);
+      } catch (err) {
+        console.warn(
+          `Invalid storage key skipped: ${record.storedFileName} (${(err as Error).message})`,
+        );
+      }
+    }
+  }
 
   const actualS3Keys = new Set(s3ObjectKeys);
 
@@ -167,7 +241,7 @@ export function reconcileStorageKeys(
 
   const orphanedInS3: string[] = [];
   for (const act of actualS3Keys) {
-    // Only consider objects under the designated prefix
+    // Only consider objects under designated prefix
     if (!prefix || act.startsWith(prefix)) {
       if (!expectedS3Keys.has(act)) {
         orphanedInS3.push(act);
@@ -175,7 +249,13 @@ export function reconcileStorageKeys(
     }
   }
 
-  return { matchedCount, missingInS3, orphanedInS3 };
+  return {
+    activeDbCount: activeRecords.length,
+    softDeletedCount: softDeletedRecords.length,
+    matchedCount,
+    missingInS3,
+    orphanedInS3,
+  };
 }
 
 async function main() {
@@ -190,6 +270,11 @@ async function main() {
   if (values.help) {
     console.log(`
 Velorix Sentinel — Storage Reconciliation Tool (Read-Only)
+Task 8.3: Disaster Recovery Capture Storage Integrity Reconciler
+
+Compares PostgreSQL uploaded_files metadata against S3 bucket objects via @aws-sdk/client-s3.
+Excludes soft-deleted files (upload_status = 'DELETED').
+
 Usage:
   bun run scripts/dr/reconcile-storage.ts
   node scripts/dr/reconcile-storage.ts
@@ -204,26 +289,29 @@ Usage:
   const config = resolveConfig();
   console.log(`Bucket:         ${config.bucket}`);
   console.log(`Prefix:         ${config.prefix}`);
-  console.log(`S3 Endpoint:    ${config.endpoint || "(default AWS)"}`);
+  console.log(`S3 Endpoint:    ${config.endpoint || "(default AWS S3)"}`);
   console.log(`Database Host:  ${config.db.host}:${config.db.port}/${config.db.name}`);
+  console.log(`S3 Driver:      @aws-sdk/client-s3 (native S3Client with pagination)`);
   console.log(`------------------------------------------------------------------------------`);
 
-  console.log("Querying database uploaded_files records...");
-  const dbKeys = fetchDatabaseStorageKeys(config);
-  console.log(`Found ${dbKeys.length} stored file records in database.`);
+  console.log("Querying database uploaded_files records (excluding soft-deleted)...");
+  const dbRecords = fetchDatabaseRecords(config);
+  console.log(`Found ${dbRecords.length} total database records.`);
 
-  console.log("Querying S3 object storage keys...");
-  const s3Keys = fetchS3ObjectKeys(config);
+  console.log("Querying S3 object storage keys via @aws-sdk/client-s3...");
+  const s3Keys = await fetchS3ObjectKeys(config);
   console.log(`Found ${s3Keys.length} objects in storage bucket.`);
 
-  const comparison = reconcileStorageKeys(dbKeys, s3Keys, config.prefix);
+  const comparison = reconcileStorageKeys(dbRecords, s3Keys, config.prefix);
 
   const durationMs = Date.now() - start;
 
   console.log(`\n------------------------------------------------------------------------------`);
   console.log(`📊 RECONCILIATION RESULTS`);
   console.log(`------------------------------------------------------------------------------`);
-  console.log(`Total Database Captures:  ${dbKeys.length}`);
+  console.log(`Total Database Records:   ${dbRecords.length}`);
+  console.log(`Active Captures (DB):     ${comparison.activeDbCount}`);
+  console.log(`Soft-Deleted Ignored:     ${comparison.softDeletedCount}`);
   console.log(`Total S3 Objects:         ${s3Keys.length}`);
   console.log(`Matched (Valid in Both):  ${comparison.matchedCount}`);
   console.log(`Missing in S3 (Critical): ${comparison.missingInS3.length}`);
@@ -236,7 +324,7 @@ Usage:
   }
 
   if (comparison.orphanedInS3.length > 0) {
-    console.log(`\n⚠️ NOTICE: S3 objects present with no corresponding database record:`);
+    console.log(`\n⚠️ NOTICE: S3 objects present with no corresponding active database record:`);
     comparison.orphanedInS3.forEach((k) => console.log(`   - ${k}`));
   }
 

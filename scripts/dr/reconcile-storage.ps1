@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Velorix Sentinel — Storage Reconciliation Runner (PowerShell 5.1 / Windows).
+    Velorix Sentinel -- Storage Reconciliation Runner (PowerShell 5.1 / Windows).
     Task 8.3: Disaster Recovery Storage Reconciler Runner.
 #>
 

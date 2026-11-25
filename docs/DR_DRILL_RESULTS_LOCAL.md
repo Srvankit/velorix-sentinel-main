@@ -37,104 +37,219 @@ failed to connect to the docker API at npipe:////./pipe/docker_engine; check if 
 | :--- | :--- | :---: | :---: |
 | **`backup-db.sh`** | POSIX `bash -n` syntax parse | **PASS (0 syntax errors)** | **UNVERIFIED - needs first real run** |
 | **`backup-db.ps1`** | PowerShell AST parser (`ParseFile`) | **PASS (0 syntax errors)** | **UNVERIFIED - needs first real run** |
-| **`restore-db.sh` (Refusal Guard)** | Shell execution against remote Supabase host | **PASS (Refusal Demonstrated)** | Ready for staging drill |
-| **`restore-db.ps1` (Refusal Guard)** | PowerShell execution against remote Supabase host | **PASS (Refusal Demonstrated)** | Ready for staging drill |
+| **`restore-db.sh` (Strict Allowlist Refusal Guard)** | Shell execution against 3 non-local targets | **PASS (Refusal Demonstrated on 3/3 targets)** | Ready for staging drill |
+| **`restore-db.ps1` (Strict Allowlist Refusal Guard)** | PowerShell execution against 3 non-local targets | **PASS (Refusal Demonstrated on 3/3 targets)** | Ready for staging drill |
 | **`restore-db.sh` (Full Restore)** | Live container execution | *Blocked (Docker absent)* | **UNVERIFIED - needs first real run** |
 | **`restore-db.ps1` (Full Restore)** | Live container execution | *Blocked (Docker absent)* | **UNVERIFIED - needs first real run** |
 | **`verify-integrity.sql`** | SQL syntax audit against V1–V12 migrations | **PASS (Reviewed)** | **UNVERIFIED - needs first real run** |
 | **`verify-integrity.sh` / `.ps1`** | Bash & PowerShell parser checks | **PASS (0 syntax errors)** | **UNVERIFIED - needs first real run** |
-| **`reconcile-storage.ts`** | Pure comparison logic unit tests (`reconcile.test.ts`) | **PASS (4/4 tests passed)** | **UNVERIFIED on live S3 bucket** |
+| **`reconcile-storage.ts`** | Pure comparison logic unit tests (`reconcile.test.ts`) | **PASS (9/9 tests passed)** | **UNVERIFIED on live S3 bucket** |
 | **Refresh Token Revocation SQL** | Query validation against V1 & V12 column definitions | **PASS (Reviewed)** | **UNVERIFIED - needs first real run** |
 
 ---
 
-## 3. Demonstrated Local Evidence: Non-Local Target Refusal Guard
+## 3. Demonstrated Local Evidence: Strict Allowlist Refusal Guard
 
-Rule 8 requires that the restore script's safety guard—refusing to restore to any remote or cloud database without the explicit override flag—be demonstrable without Docker.
+Rule 8 and the user instructions require that the restore scripts enforce a strict **ALLOWLIST** (`localhost`, `127.0.0.1`, `::1`, `host.docker.internal`) rather than a keyword denylist. Without `--force-remote-restore` (Bash) or `-ForceRemoteRestore` (PowerShell), any target not in the allowlist must be immediately refused before any network connection, Docker, or `pg_restore` action is attempted.
 
-### 3.1 PowerShell Refusal Demonstration
-Executed against a simulated Supabase host:
+Refusal was verified against three distinct non-local targets:
+1. Supabase pooler host: `aws-0-ap-southeast-1.pooler.supabase.com`
+2. Plain IP address: `10.1.2.3`
+3. Generic hostname: `db.example.com`
 
+---
+
+### 3.1 PowerShell Refusal Demonstrations (`restore-db.ps1`)
+
+#### Target 1: Supabase Pooler Host (`aws-0-ap-southeast-1.pooler.supabase.com`)
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\dr\restore-db.ps1 -HostName "aws-0-ap-southeast-1.pooler.supabase.com" -DumpFile "dummy.dump"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dr\restore-db.ps1 -HostName "aws-0-ap-southeast-1.pooler.supabase.com" -DumpFile "dummy.dump"
 ```
-
-**Actual Output:**
+**Actual Output (Exit Code 1):**
 ```text
 ==============================================================================
-🛑 CRITICAL SAFETY GUARD REFUSAL: NON-LOCAL RESTORE BLOCKED
+CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
 ==============================================================================
-Target Host: 'aws-0-ap-southeast-1.pooler.supabase.com' appears to be a remote, staging, or production database!
+Target Host: 'aws-0-ap-southeast-1.pooler.supabase.com' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
 
-Refusing to execute restore because restoring over an active cloud database will
-OVERWRITE or DROP existing data tables.
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
 
 If this is a genuine disaster recovery operation against a newly provisioned
-recovery database, you MUST re-run with the explicit confirmation switch:
+recovery database, you MUST pass the explicit confirmation switch:
    -ForceRemoteRestore
 
 Example:
    .\scripts\dr\restore-db.ps1 -ForceRemoteRestore -HostName aws-0-ap-southeast-1.pooler.supabase.com -DumpFile <dump>
 ==============================================================================
 ```
-*Result:* **Exited with code 1 immediately** before any network connections or database operations were attempted.
+
+#### Target 2: Plain IP (`10.1.2.3`)
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dr\restore-db.ps1 -HostName "10.1.2.3" -DumpFile "dummy.dump"
+```
+**Actual Output (Exit Code 1):**
+```text
+==============================================================================
+CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
+==============================================================================
+Target Host: '10.1.2.3' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
+
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
+
+If this is a genuine disaster recovery operation against a newly provisioned
+recovery database, you MUST pass the explicit confirmation switch:
+   -ForceRemoteRestore
+
+Example:
+   .\scripts\dr\restore-db.ps1 -ForceRemoteRestore -HostName 10.1.2.3 -DumpFile <dump>
+==============================================================================
+```
+
+#### Target 3: Generic Hostname (`db.example.com`)
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dr\restore-db.ps1 -HostName "db.example.com" -DumpFile "dummy.dump"
+```
+**Actual Output (Exit Code 1):**
+```text
+==============================================================================
+CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
+==============================================================================
+Target Host: 'db.example.com' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
+
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
+
+If this is a genuine disaster recovery operation against a newly provisioned
+recovery database, you MUST pass the explicit confirmation switch:
+   -ForceRemoteRestore
+
+Example:
+   .\scripts\dr\restore-db.ps1 -ForceRemoteRestore -HostName db.example.com -DumpFile <dump>
+==============================================================================
+```
 
 ---
 
-### 3.2 Bash Refusal Demonstration
-Executed against a simulated Supabase host via Git Bash:
+### 3.2 Bash Refusal Demonstrations (`restore-db.sh`)
 
+#### Target 1: Supabase Pooler Host (`aws-0-ap-southeast-1.pooler.supabase.com`)
 ```bash
 ./scripts/dr/restore-db.sh --host "aws-0-ap-southeast-1.pooler.supabase.com" --file "dummy.dump"
 ```
-
-**Actual Output:**
+**Actual Output (Exit Code 1):**
 ```text
 ==============================================================================
-🛑 CRITICAL SAFETY GUARD REFUSAL: NON-LOCAL RESTORE BLOCKED
+🛑 CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
 ==============================================================================
-Target Host: 'aws-0-ap-southeast-1.pooler.supabase.com' appears to be a remote, staging, or production database!
+Target Host: 'aws-0-ap-southeast-1.pooler.supabase.com' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
 
-Refusing to execute restore because restoring over an active cloud database will
-OVERWRITE or DROP existing data tables.
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
 
 If this is a genuine disaster recovery operation against a newly provisioned
-recovery database, you MUST re-run with the explicit confirmation flag:
+recovery database, you MUST pass the explicit confirmation flag:
    --force-remote-restore
 
 Example:
    ./scripts/dr/restore-db.sh --force-remote-restore --host aws-0-ap-southeast-1.pooler.supabase.com --file <dump>
 ==============================================================================
 ```
-*Result:* **Exited with code 1 immediately**.
+
+#### Target 2: Plain IP (`10.1.2.3`)
+```bash
+./scripts/dr/restore-db.sh --host "10.1.2.3" --file "dummy.dump"
+```
+**Actual Output (Exit Code 1):**
+```text
+==============================================================================
+🛑 CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
+==============================================================================
+Target Host: '10.1.2.3' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
+
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
+
+If this is a genuine disaster recovery operation against a newly provisioned
+recovery database, you MUST pass the explicit confirmation flag:
+   --force-remote-restore
+
+Example:
+   ./scripts/dr/restore-db.sh --force-remote-restore --host 10.1.2.3 --file <dump>
+==============================================================================
+```
+
+#### Target 3: Generic Hostname (`db.example.com`)
+```bash
+./scripts/dr/restore-db.sh --host "db.example.com" --file "dummy.dump"
+```
+**Actual Output (Exit Code 1):**
+```text
+==============================================================================
+🛑 CRITICAL SAFETY GUARD: NON-LOCAL RESTORE BLOCKED
+==============================================================================
+Target Host: 'db.example.com' is NOT in the local allowlist!
+Permitted local targets without override: localhost, 127.0.0.1, ::1, host.docker.internal
+
+Refusing to execute restore. Restoring over any remote, shared, or unverified
+database host risks OVERWRITING or DROPPING existing database tables.
+
+If this is a genuine disaster recovery operation against a newly provisioned
+recovery database, you MUST pass the explicit confirmation flag:
+   --force-remote-restore
+
+Example:
+   ./scripts/dr/restore-db.sh --force-remote-restore --host db.example.com --file <dump>
+==============================================================================
+```
 
 ---
 
-## 4. Pure Logic Unit Test Evidence (`scripts/dr/__tests__/reconcile.test.ts`)
+## 4. Storage Reconciliation & Unit Test Evidence (`scripts/dr/reconcile-storage.ts`)
 
-The storage reconciler comparison algorithm was verified with pure unit tests without network or live S3 dependencies:
+### 4.1 S3 Communication & Implementation Details
+- **S3 SDK Integration:** `scripts/dr/reconcile-storage.ts` connects to S3-compatible storage using the official `@aws-sdk/client-s3` (`S3Client`, `ListObjectsV2Command`). The package is registered in `package.json` under `devDependencies` and tracked in `package-lock.json`.
+- **Pagination Support:** Bucket objects are scanned using `ListObjectsV2Command` with `ContinuationToken` pagination to reliably process buckets containing more than 1,000 objects.
+- **Key-Building Logic Parity:** Key building (`resolveS3Key`) strictly mirrors the backend implementation in `backend/src/main/java/com/velorix/sentinel/storage/S3CompatibleFileStorageService.java:195-212` (`resolveObjectKey`):
+  1. Replaces Windows backslashes `\` with `/`.
+  2. Strips leading slashes (`/`).
+  3. Rejects directory traversal attempts (`..`) with an error.
+  4. Prepends the configured prefix (default `captures/`).
+- **Soft-Delete Exclusion:** In `UploadedFileServiceImpl.java:178`, when a capture is deleted by an analyst, the backend executes `fileStorageService.delete(storageKey)` (removing the physical object from S3) and updates the database row to `upload_status = 'DELETED'`. If a reconciler does not account for this, every soft-deleted file would be falsely reported as an incident ("Missing in S3"). `reconcile-storage.ts` queries `upload_status` and excludes rows where `upload_status === 'DELETED'` from the expected S3 set.
 
+### 4.2 Unit Test Execution (`bun test scripts/dr/__tests__`)
 ```text
 bun test scripts/dr/__tests__
 bun test v1.3.10 (30e609e0)
 
 scripts\dr\__tests__\reconcile.test.ts:
-(pass) Storage Reconciliation Logic > accurately matches DB stored file names against prefixed S3 object keys
-(pass) Storage Reconciliation Logic > identifies captures in DB that are missing from S3 storage
-(pass) Storage Reconciliation Logic > identifies orphaned objects in S3 that have no DB reference
-(pass) Storage Reconciliation Logic > ignores S3 objects outside of designated prefix
+(pass) Storage Key Building Logic (S3CompatibleFileStorageService Alignment) > prepends default prefix to clean storage key
+(pass) Storage Key Building Logic (S3CompatibleFileStorageService Alignment) > strips leading forward slashes and normalizes backslashes
+(pass) Storage Key Building Logic (S3CompatibleFileStorageService Alignment) > supports empty prefix or custom prefix without trailing slash
+(pass) Storage Key Building Logic (S3CompatibleFileStorageService Alignment) > rejects path traversal attempts with directory traversal error
+(pass) Storage Reconciliation & Soft-Delete Exclusion > accurately matches active DB records against prefixed S3 object keys
+(pass) Storage Reconciliation & Soft-Delete Exclusion > EXCLUDES soft-deleted records (upload_status = 'DELETED') from expected S3 objects
+(pass) Storage Reconciliation & Soft-Delete Exclusion > identifies active DB captures that are missing from S3 storage
+(pass) Storage Reconciliation & Soft-Delete Exclusion > identifies orphaned objects in S3 that have no active DB record
+(pass) Storage Reconciliation & Soft-Delete Exclusion > handles custom prefix and backward-compatible string array inputs
 
- 4 pass
+ 9 pass
  0 fail
- 11 expect() calls
-Ran 4 tests across 1 file. [181.00ms]
+ 25 expect() calls
+Ran 9 tests across 1 file. [351.00ms]
 ```
 
 ---
 
 ## 5. Token Revocation SQL Review (Migration V1 & V12 Alignment)
 
-The SQL queries in Runbook Scenario F and G were audited against the actual Flyway schema:
+The SQL queries in Runbook Scenario F and G were audited against the actual Flyway schema migrations and repository layer:
 
 1. **Mass Revocation (All Users / Leaked `JWT_SECRET`):**
    ```sql
@@ -144,11 +259,25 @@ The SQL queries in Runbook Scenario F and G were audited against the actual Flyw
        updated_at = NOW() 
    WHERE revoked = FALSE;
    ```
-   - `revoked`: `BOOLEAN NOT NULL DEFAULT FALSE` (defined in `V1__baseline_schema.sql:30`).
-   - `revoked_at`: `TIMESTAMPTZ` (defined in `V1__baseline_schema.sql:31`).
-   - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT NOW()` (defined in `V1__baseline_schema.sql:35`).
+   - `revoked`: `BOOLEAN NOT NULL DEFAULT FALSE` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:30`).
+   - `revoked_at`: `TIMESTAMPTZ` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:31`).
+   - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT NOW()` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:35`).
+   - Application equivalent: `RefreshTokenRepository.java:36` (`int revokeAllForUser(@Param("userId") UUID userId, @Param("now") Instant now)`).
+   - Live execution: **`UNVERIFIED - needs first real run`** (Docker/PostgreSQL unavailable on local host).
 
-2. **Family Revocation (Replay Attack):**
+2. **Targeted Revocation by User ID (Compromised User):**
+   ```sql
+   UPDATE refresh_tokens 
+   SET revoked = TRUE, 
+       revoked_at = NOW(), 
+       updated_at = NOW() 
+   WHERE user_id = '<TARGET_USER_UUID>' AND revoked = FALSE;
+   ```
+   - `user_id`: `UUID NOT NULL` (defined in `backend/src/main/resources/db/migration/V1__baseline_schema.sql:27`, foreign key to `users(id)`).
+   - Application equivalent: `RefreshTokenRepository.java:36` (`revokeAllForUser`).
+   - Live execution: **`UNVERIFIED - needs first real run`**.
+
+3. **Family Revocation (Replay Attack / Leaked Token Chain):**
    ```sql
    UPDATE refresh_tokens 
    SET revoked = TRUE, 
@@ -156,8 +285,15 @@ The SQL queries in Runbook Scenario F and G were audited against the actual Flyw
        updated_at = NOW() 
    WHERE family_id = '<TARGET_FAMILY_UUID>' AND revoked = FALSE;
    ```
-   - `family_id`: `UUID NOT NULL` (added in `V12__refresh_token_family_and_reuse_detection.sql:7`).
-   - Indexed via `idx_refresh_tokens_family_id` (`V12__refresh_token_family_and_reuse_detection.sql:16`).
+   - `family_id`: `UUID NOT NULL` (added in `backend/src/main/resources/db/migration/V12__refresh_token_family_and_reuse_detection.sql:7,14`).
+   - Indexed via `idx_refresh_tokens_family_id` (`backend/src/main/resources/db/migration/V12__refresh_token_family_and_reuse_detection.sql:16`).
+   - Application equivalent in `backend/src/main/java/com/velorix/sentinel/repository/RefreshTokenRepository.java:31`:
+     ```java
+     @Modifying
+     @Query("UPDATE RefreshToken rt SET rt.revoked = true, rt.revokedAt = :now WHERE rt.familyId = :familyId AND rt.revoked = false")
+     int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
+     ```
+   - Live execution: **`UNVERIFIED - needs first real run`**.
 
 ---
 
