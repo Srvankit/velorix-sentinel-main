@@ -120,8 +120,19 @@ Velorix Sentinel maintains a staging environment replicating all production secu
 For the complete step-by-step provisioning runbook, environment variable matrix, and troubleshooting guide, see:
 - [Staging Setup Runbook](file:///docs/STAGING_SETUP.md)
 - [Staging Environment Record](file:///docs/STAGING_ENVIRONMENT_RECORD.md)
+- [Staging Verification & Pre-Flight Testing Guide](file:///docs/STAGING_VERIFICATION.md)
 - [Staging Preflight Verification Script (Bash)](file:///scripts/staging-preflight.sh)
 - [Staging Preflight Verification Script (PowerShell)](file:///scripts/staging-preflight.ps1)
+
+To run the automated Golden PCAP verification harness against staging:
+
+```sh
+# Run all 16 verification checks across 6 stages:
+bun run staging:verify
+
+# Or target specific stages:
+bun run scripts/staging-verify/index.ts --stage golden
+```
 
 To run the automated preflight test suite against deployed staging infrastructure:
 
