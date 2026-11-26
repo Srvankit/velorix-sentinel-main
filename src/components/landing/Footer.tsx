@@ -3,6 +3,7 @@ import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 
 import { Logo } from "@/components/common";
 import { APP_NAME, APP_TAGLINE, COMPANY_NAME } from "@/utils/constants";
+import { getFeedbackEmail } from "@/utils/feedback";
 
 const columns = [
   {
@@ -22,6 +23,8 @@ const socials = [
 ];
 
 export function Footer() {
+  const feedbackEmail = getFeedbackEmail();
+
   return (
     <footer id="contact" className="border-t border-border bg-surface/50 px-6 py-16">
       <div className="mx-auto w-full max-w-7xl">
@@ -84,6 +87,14 @@ export function Footer() {
             <Link to="/register" className="transition-colors hover:text-primary">
               Create account
             </Link>
+            {feedbackEmail && (
+              <a
+                href={`mailto:${feedbackEmail}?subject=${encodeURIComponent(APP_NAME + " Beta Feedback")}`}
+                className="transition-colors hover:text-primary"
+              >
+                Feedback
+              </a>
+            )}
           </div>
         </div>
       </div>

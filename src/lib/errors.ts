@@ -91,6 +91,19 @@ export function describeError(error: unknown): DescribedError {
     };
   }
 
+  if (
+    code === "INVITE_ONLY" ||
+    (status === 403 && message?.toLowerCase().includes("invite-only"))
+  ) {
+    return {
+      kind: "forbidden",
+      title: "Closed Beta — Invite Only",
+      message:
+        "Registration is currently by invitation only. If you have received an invite, please ensure you use the exact email address it was sent to.",
+      retryable: false,
+    };
+  }
+
   if (status === 401) {
     return {
       kind: "authentication",

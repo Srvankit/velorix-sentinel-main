@@ -1,7 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { AlertTriangle, RotateCw } from "lucide-react";
+import { AlertTriangle, Mail, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { getFeedbackEmail } from "@/utils/feedback";
 
 interface Props {
   children: ReactNode;
@@ -47,10 +48,24 @@ export class ErrorBoundary extends Component<Props, State> {
           {this.props.title ?? "This panel could not be displayed"}
         </h3>
         <p className="max-w-md text-xs text-muted-foreground">{this.state.error.message}</p>
-        <Button variant="outline" size="sm" onClick={this.reset}>
-          <RotateCw className="size-4" aria-hidden="true" />
-          Retry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={this.reset}>
+            <RotateCw className="size-4" aria-hidden="true" />
+            Retry
+          </Button>
+          {getFeedbackEmail() && (
+            <Button variant="ghost" size="sm" asChild>
+              <a
+                href={`mailto:${getFeedbackEmail()}?subject=${encodeURIComponent("Velorix Sentinel Crash Report")}&body=${encodeURIComponent(
+                  `Error: ${this.state.error.message}\nLocation: ${typeof window !== "undefined" ? window.location.href : "unknown"}`,
+                )}`}
+              >
+                <Mail className="size-4" aria-hidden="true" />
+                Report issue
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

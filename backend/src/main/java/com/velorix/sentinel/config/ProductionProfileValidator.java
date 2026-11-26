@@ -1,6 +1,7 @@
 package com.velorix.sentinel.config;
 
 import com.velorix.sentinel.config.properties.AppProperties;
+import com.velorix.sentinel.config.properties.BetaProperties;
 import com.velorix.sentinel.config.properties.CorsProperties;
 import com.velorix.sentinel.config.properties.JwtProperties;
 import com.velorix.sentinel.config.properties.StorageProperties;
@@ -48,6 +49,7 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
     private final StorageProperties storageProperties;
     private final AppProperties appProperties;
     private final ObjectProvider<DataSourceProperties> dataSourcePropertiesProvider;
+    private final ObjectProvider<BetaProperties> betaPropertiesProvider;
 
     public ProductionProfileValidator(
             Environment environment,
@@ -56,12 +58,24 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
             StorageProperties storageProperties,
             AppProperties appProperties,
             ObjectProvider<DataSourceProperties> dataSourcePropertiesProvider) {
+        this(environment, jwtProperties, corsProperties, storageProperties, appProperties, dataSourcePropertiesProvider, null);
+    }
+
+    public ProductionProfileValidator(
+            Environment environment,
+            JwtProperties jwtProperties,
+            CorsProperties corsProperties,
+            StorageProperties storageProperties,
+            AppProperties appProperties,
+            ObjectProvider<DataSourceProperties> dataSourcePropertiesProvider,
+            ObjectProvider<BetaProperties> betaPropertiesProvider) {
         this.environment = environment;
         this.jwtProperties = jwtProperties;
         this.corsProperties = corsProperties;
         this.storageProperties = storageProperties;
         this.appProperties = appProperties;
         this.dataSourcePropertiesProvider = dataSourcePropertiesProvider;
+        this.betaPropertiesProvider = betaPropertiesProvider;
     }
 
     @Override
@@ -105,6 +119,7 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
         validateEmailConfiguration(violations);
         validateOpenApiGating(violations);
         validateFlywayConfiguration(violations);
+        validateBetaInviteOnly();
 
         if (!violations.isEmpty() && enforceThrows) {
             throw new ProductionConfigurationException(violations);
@@ -278,6 +293,20 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
         boolean cleanDisabled = environment.getProperty("spring.flyway.clean-disabled", Boolean.class, true);
         if (!cleanDisabled) {
             violations.add("spring.flyway.clean-disabled must be true in production to prevent destructive clean actions.");
+        }
+    }
+
+    void validateBetaInviteOnly() {
+        BetaProperties beta = betaPropertiesProvider != null ? betaPropertiesProvider.getIfAvailable() : null;
+        if (beta == null) {
+            return;
+        }
+        boolean inviteOnly = Boolean.TRUE.equals(beta.inviteOnly());
+        int entryCount = beta.allowedEntriesCount();
+        log.info("Closed beta invite-only gate: {} ({} allowed entries configured)",
+                inviteOnly ? "ON" : "OFF", entryCount);
+        if (inviteOnly && entryCount == 0) {
+            log.warn("velorix.beta.invite-only is enabled (BETA_INVITE_ONLY=true), but velorix.beta.allowed-emails (BETA_ALLOWED_EMAILS) has 0 entries. All new registrations will be blocked.");
         }
     }
 

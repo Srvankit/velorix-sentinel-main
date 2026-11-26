@@ -361,6 +361,32 @@ class ProductionProfileValidatorUnitTest {
     }
 
     @Test
+    @DisplayName("Closed beta invite-only enabled with 0 entries produces warning but no fatal violations")
+    void closedBetaInviteOnlyWithZeroEntriesProducesNoViolations() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.url", VALID_DB_URL);
+        env.setProperty("spring.datasource.password", VALID_DB_PASSWORD);
+        env.setProperty("spring.flyway.clean-disabled", "true");
+        env.setProperty("spring.mail.host", "smtp.sendgrid.net");
+
+        JwtProperties jwtProps = new JwtProperties(VALID_JWT_SECRET, "velorix-sentinel", Duration.ofMinutes(15), Duration.ofDays(7), "Bearer ", "Authorization");
+        CorsProperties corsProps = new CorsProperties(VALID_CORS_ORIGINS, List.of("GET"), List.of("*"), List.of(), true, 3600L);
+        AppProperties appProps = new AppProperties(VALID_FRONTEND_URL, Duration.ofHours(24), Duration.ofMinutes(30), Duration.ofHours(12));
+        StorageProperties.S3Properties s3 = new StorageProperties.S3Properties("velorix-captures-staging", "us-east-1", null, null, null, true, "captures/");
+        StorageProperties storageProps = new StorageProperties("s3", null, null, null, null, s3, 10, null);
+
+        ObjectProvider<DataSourceProperties> dsProvider = mockObjectProvider(VALID_DB_URL, VALID_DB_PASSWORD);
+        com.velorix.sentinel.config.properties.BetaProperties betaProps = new com.velorix.sentinel.config.properties.BetaProperties(true, List.of());
+        ObjectProvider<com.velorix.sentinel.config.properties.BetaProperties> betaProvider = mockBetaProvider(betaProps);
+
+        ProductionProfileValidator validator = new ProductionProfileValidator(env, jwtProps, corsProps, storageProps, appProps, dsProvider, betaProvider);
+
+        List<String> violations = validator.validate(false);
+        assertThat(violations).isEmpty();
+    }
+
+    @Test
     @DisplayName("afterSingletonsInstantiated does not throw when non-prod profile is active")
     void afterSingletonsInstantiatedDoesNotThrowInDevOrTest() {
         MockEnvironment env = new MockEnvironment();
@@ -385,6 +411,14 @@ class ProductionProfileValidatorUnitTest {
         dsProps.setUrl(url);
         dsProps.setPassword(password);
         when(provider.getIfAvailable()).thenReturn(dsProps);
+        return provider;
+    }
+
+    @SuppressWarnings("unchecked")
+    private ObjectProvider<com.velorix.sentinel.config.properties.BetaProperties> mockBetaProvider(
+            com.velorix.sentinel.config.properties.BetaProperties betaProps) {
+        ObjectProvider<com.velorix.sentinel.config.properties.BetaProperties> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(betaProps);
         return provider;
     }
 }

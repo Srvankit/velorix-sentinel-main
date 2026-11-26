@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from "lucide-react";
+import {
+  Bell,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+  X,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Logo } from "@/components/common";
@@ -9,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDashboardSummary } from "@/hooks/useDashboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/utils/format";
+import { getFeedbackEmail } from "@/utils/feedback";
 import { navigation } from "./navigation";
 
 interface DashboardLayoutProps {
@@ -113,6 +124,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         ))}
       </div>
+
+      {getFeedbackEmail() && (
+        <div className={cn("px-1", compact && "flex justify-center")}>
+          <a
+            href={`mailto:${getFeedbackEmail()}?subject=Velorix%20Sentinel%20Beta%20Feedback`}
+            title="Send feedback"
+            aria-label="Send feedback"
+            className={cn(
+              "focus-ring flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
+              compact && "justify-center px-2",
+            )}
+          >
+            <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
+            {!compact && <span>Send feedback</span>}
+          </a>
+        </div>
+      )}
 
       {user && (
         <div
