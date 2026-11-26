@@ -4,75 +4,137 @@ This runbook defines the sequential, time-ordered procedures, GO/NO-GO decision 
 
 ---
 
-## 1. First Real Deploy Sequence (End-to-End Onboarding)
+## 1. Staging-First Deployment & Infrastructure Onboarding
 
-Before executing the timed go-live procedure, the infrastructure foundations must be provisioned in the exact sequential order below:
+> [!IMPORTANT]
+> **STAGING FIRST POLICY:** Production onboarding MUST NOT begin until the complete staging deployment has been stood up and verified per [`docs/STAGING_SETUP.md`](STAGING_SETUP.md). All 16 checks across the 6 stages of `bun run staging:verify`, the real disaster recovery drill, and the 48-hour telemetry soak test must pass on staging before deploying to production.
+
+The onboarding and deployment lifecycle proceeds strictly through these sequential stages:
 
 ```
-[1. Supabase Project] ──> [2. S3 Bucket & Keys] ──> [3. Email Provider Domain] ──> [4. OAuth2 Apps]
+[1. Staging Setup per docs/STAGING_SETUP.md]
          │
          ▼
-[5. Render Web Service] ──> [6. Netlify Site] ──> [7. Preflight Drill] ──> [8. Task 8.2 Harness]
+[2. Staging Preflight & Task 8.2 Harness (bun run staging:verify)]
          │
          ▼
-[9. Real DR Drill] ──> [10. 48-Hour Soak Test] ──> [11. Production Go-Live]
+[3. Staging DR Drill (backup-db, restore-db, bun run dr:reconcile)]
+         │
+         ▼
+[4. 48-Hour Staging Closed Beta Soak Test]
+         │
+         ▼
+[5. Production Infrastructure Onboarding (Pooler + S3 + Resend + OAuth)]
+         │
+         ▼
+[6. Production Render & Netlify Deploy] ──> [7. Timed Go-Live (T-Minus)]
 ```
 
-### Step 1: Supabase Production Project Creation
-1. Log into [Supabase](https://supabase.com) and create project `velorix-sentinel-prod` in your target region (e.g., `us-east-1`).
-2. Record the **Project Reference ID**, database host, and port `5432` (Session Pooler).
-3. Set a strong password (minimum 32 characters, generated via `PRODUCTION_ENV_CHECKLIST.md`).
+### Step 1: Database Setup — Supabase Session Pooler
+1. Log into [Supabase](https://supabase.com) and create project `velorix-sentinel-staging` (and subsequently `velorix-sentinel-prod`) in your target AWS region (e.g., `us-east-1` or `ap-southeast-1`).
+2. **Session Pooler Configuration:**
+   - **Host:** `aws-0-<region>.pooler.supabase.com`
+   - **Port:** `5432` (Session Pooler mode)
+   - **Username:** `postgres.<project-ref>`
+   - **JDBC URL:** `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`
+   - **Password:** Strong alphanumeric password (minimum 32 characters, generated via `docs/PRODUCTION_ENV_CHECKLIST.md`).
+   - > [!CAUTION]
+     > **NEVER** use the direct database host `db.<project-ref>.supabase.co`. Render has no direct IPv6 routing to Supabase direct hosts, and direct connections do not pool connections, causing connection starvation and timeouts.
 
-### Step 2: S3 Storage Bucket & API Keys
-1. In Supabase Dashboard > **Storage**, create a private bucket named `velorix-captures-prod`.
+### Step 2: Storage Setup — Supabase Storage S3-Compatible API (Default)
+1. In Supabase Dashboard > **Storage**, create a private bucket named `velorix-captures-staging` (and `velorix-captures-prod`).
 2. Under **Project Settings** > **Storage** > **S3 Access Keys**, generate a new S3 Access Key pair.
-3. Record `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and S3 endpoint (`https://<project-ref>.supabase.co/storage/v1/s3`).
+3. **Required Environment Variables:**
+   - `VELORIX_STORAGE_PROVIDER=s3`
+   - `S3_ENDPOINT=https://<project-ref>.supabase.co/storage/v1/s3`
+   - `S3_PATH_STYLE_ACCESS=true` *(MANDATORY for Supabase Storage and MinIO)*
+   - `AWS_REGION=<matching-supabase-region>` *(MUST match your Supabase project region, e.g. `us-east-1` or `ap-southeast-1`)*
+   - `S3_BUCKET_NAME=velorix-captures-staging` (or `velorix-captures-prod`)
+   - `AWS_ACCESS_KEY_ID=<supabase-s3-access-key-id>`
+   - `AWS_SECRET_ACCESS_KEY=<supabase-s3-secret-key>`
+4. **Alternative — AWS S3:**
+   - If using native AWS S3 instead of Supabase Storage:
+     - `S3_ENDPOINT=` *(leave unset / empty to use standard AWS S3 endpoints)*
+     - `S3_PATH_STYLE_ACCESS=false` *(AWS S3 uses virtual-hosted style)*
+     - `AWS_REGION=us-east-1` (or your AWS bucket region)
+     - `S3_BUCKET_NAME=your-aws-s3-bucket-name`
+     - `AWS_ACCESS_KEY_ID=AKIA...` and `AWS_SECRET_ACCESS_KEY=...`
 
 ### Step 3: Transactional Email Setup (Resend / SMTP)
-1. In [Resend](https://resend.com) (or your chosen SMTP provider), verify your production domain (configure DKIM, SPF, and DMARC DNS records).
-2. Generate a dedicated production API key (`re_...`).
+1. In [Resend](https://resend.com) (or your chosen SMTP provider), verify your domain (configure DKIM, SPF, and DMARC DNS records).
+2. Generate a dedicated API key (`re_...`).
 3. Set `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=587`, `SMTP_USERNAME=resend`, `SMTP_PASSWORD=<API_KEY>`, and `MAIL_FROM=notifications@<your-verified-domain>`.
+4. Ensure `ALLOW_LOGGING_EMAIL_FALLBACK=false` in staging and production.
 
-### Step 4: OAuth2 Production Applications
+### Step 4: OAuth2 Applications
 1. **Google Cloud Console:** Create OAuth 2.0 Web Application credentials. Add redirect URI:  
-   `https://<PROD_RENDER_HOST>/login/oauth2/code/google`
+   `https://<RENDER_HOST>/login/oauth2/code/google`
 2. **GitHub Developer Settings:** Create OAuth App. Add callback URL:  
-   `https://<PROD_RENDER_HOST>/login/oauth2/code/github`
-3. Record separate production Client IDs and Client Secrets.
+   `https://<RENDER_HOST>/login/oauth2/code/github`
+3. Record separate Staging and Production Client IDs and Client Secrets.
 
-### Step 5: Render Production Web Service
+### Step 5: Render Web Service
 1. Create a Web Service connected to your repository with Root Directory `backend`.
-2. Configure all variables from [`docs/PRODUCTION_ENV_CHECKLIST.md`](PRODUCTION_ENV_CHECKLIST.md). Ensure `SPRING_PROFILES_ACTIVE=prod` and `BETA_INVITE_ONLY=true`.
+2. Configure all variables from [`docs/PRODUCTION_ENV_CHECKLIST.md`](PRODUCTION_ENV_CHECKLIST.md) (or `backend/.env.staging.example` for staging). Ensure `SPRING_PROFILES_ACTIVE=prod` and `BETA_INVITE_ONLY=true`.
 3. Set guard overrides `ALLOW_LOGGING_EMAIL_FALLBACK=false` and `ALLOW_FILESYSTEM_STORAGE=false`.
 
-### Step 6: Netlify Production Frontend
+### Step 6: Netlify Frontend
 1. Create a Netlify site linked to the repository.
 2. In Site Settings > **Build & deploy** > **Environment variables**, set:
-   - `VITE_API_BASE_URL=https://<PROD_RENDER_HOST>/api`
-   - `VITE_FEEDBACK_EMAIL=support@<your-domain>`
-3. Trigger a production build.
+   - `VITE_API_BASE_URL=https://<RENDER_HOST>/api`
+   - `VITE_FEEDBACK_EMAIL=support@<your-domain>` *(Must be a real email before public launch!)*
+3. Trigger a build.
 
 ### Step 7: Automated Preflight Drill
-Run the preflight health check script against your live staging/production endpoints:
-- Linux/macOS: `./scripts/staging-preflight.sh https://<PROD_RENDER_HOST> https://<PROD_NETLIFY_DOMAIN>`
-- Windows: `.\scripts\staging-preflight.ps1 -BackendUrl https://<PROD_RENDER_HOST> -FrontendUrl https://<PROD_NETLIFY_DOMAIN>`
+Run the preflight health check script against your live endpoints:
+- Linux/macOS: `./scripts/staging-preflight.sh https://<RENDER_HOST> https://<NETLIFY_DOMAIN>`
+- Windows PowerShell: `.\scripts\staging-preflight.ps1 -BackendUrl https://<RENDER_HOST> -FrontendUrl https://<NETLIFY_DOMAIN>`
 
-### Step 8: Task 8.2 Verification Harness
-Execute the automated test harness against the live deployment in the recommended order:
+### Step 8: Task 8.2 Verification Harness (`bun run staging:verify`)
+Execute the automated 16-check, 6-stage test harness against the live deployment:
 ```bash
+# Run all 16 checks across 6 stages sequentially:
+bun run staging:verify
+
+# Or target specific stages:
 bun run scripts/staging-verify/index.ts --stage auth
 bun run scripts/staging-verify/index.ts --stage golden
 bun run scripts/staging-verify/index.ts --stage quota
 bun run scripts/staging-verify/index.ts --stage abuse
-bun run scripts/staging-verify/index.ts --stage persistence
 bun run scripts/staging-verify/index.ts --stage large
+
+# For two-phase persistence stage (Check 16: across container restart):
+bun run scripts/staging-verify/index.ts --stage persistence --phase before
+# [Trigger backend restart / redeploy in Render dashboard]
+bun run scripts/staging-verify/index.ts --stage persistence --phase after
 ```
 
 ### Step 9: Real Disaster Recovery Drill
-Execute a non-destructive database backup and storage reconciliation check using `scripts/dr/backup-db.*` and `scripts/dr/reconcile-storage.*` per [`RUNBOOK_DISASTER_RECOVERY.md`](../RUNBOOK_DISASTER_RECOVERY.md).
+Execute a database backup, schema integrity check, and storage reconciliation per [`RUNBOOK_DISASTER_RECOVERY.md`](../RUNBOOK_DISASTER_RECOVERY.md):
+- Non-destructive backup: `.\scripts\dr\backup-db.ps1` or `./scripts/dr/backup-db.sh`
+- Schema integrity: `psql "$DATABASE_URL" -f scripts/dr/verify-integrity.sql`
+- S3 Storage reconciliation:
+  ```bash
+  bun run dr:reconcile
+  ```
+  *(executes `scripts/dr/reconcile-storage.ts` via the `package.json` script `dr:reconcile`)*
 
 ### Step 10: 48-Hour Telemetry Soak Test
-Monitor telemetry continuously for 48 hours following [`docs/BETA_CHECKLIST.md`](BETA_CHECKLIST.md) §3 and [`docs/MONITORING.md`](MONITORING.md). Verify zero memory leaks and consistent HikariCP connection hygiene.
+Monitor telemetry continuously for 48 hours following [`docs/BETA_CHECKLIST.md`](BETA_CHECKLIST.md) §3 and [`docs/MONITORING.md`](MONITORING.md). Verify zero memory leaks, 5xx errors < 0.1%, and consistent HikariCP connection pool health.
+
+---
+
+## 1.1 Docker Setup Note (Local Development & CI)
+
+If running Docker containers or Testcontainers locally on Windows:
+1. Ensure **Docker Desktop** is installed and running.
+2. Ensure your current Windows user account is a member of the local `docker-users` group:
+   ```powershell
+   # Run from an Administrator PowerShell prompt:
+   net localgroup docker-users "$env:USERNAME" /add
+   ```
+3. Sign out of Windows and log back in (or restart the Docker Desktop service) for the group membership token to take effect.
+4. Verify by running `docker version` in a standard user terminal. Both `Client:` and `Server:` must return valid versions without permission denied errors on the named pipe (`npipe:////./pipe/docker_engine`).
 
 ---
 

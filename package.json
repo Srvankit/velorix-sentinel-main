@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:real": "playwright test --config e2e/playwright.real.config.ts",
     "test:all": "vitest run && npm run test:bun",
+    "staging:verify": "bun run scripts/staging-verify/index.ts",
     "dr:reconcile": "bun run scripts/dr/reconcile-storage.ts",
     "test:dr": "bun test scripts/dr/__tests__",
     "start": "node .output/server/index.mjs"

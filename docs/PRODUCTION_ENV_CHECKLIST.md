@@ -78,7 +78,20 @@ Generate a strong alphanumeric password of at least 32 characters:
 | 36 | `LOG_LEVEL_APP` | Backend | Optional | No | Render Web Service | `INFO` | `application-prod.yml:48` | [ ] | [ ] |
 | 37 | `LOG_STRUCTURED_FORMAT` | Backend | Optional | No | Render Web Service | `json` | `application-prod.yml:45` | [ ] | [ ] |
 | 38 | `VITE_API_BASE_URL` | Frontend | **Mandatory** | No | Netlify Site Settings | `https://<PROD_BACKEND_DOMAIN>/api` | Evaluated at Netlify **BUILD TIME** | [ ] | [ ] |
-| 39 | `VITE_FEEDBACK_EMAIL` | Frontend | Optional | No | Netlify Site Settings | `support@example.com` | Evaluated at Netlify **BUILD TIME** | [ ] | [ ] |
+| 39 | `VITE_FEEDBACK_EMAIL` | Frontend | **Launch Blocker** | No | Netlify Site Settings | Real monitored email (e.g. `support@yourdomain.com`) | Evaluated at Netlify **BUILD TIME** | [ ] | [ ] |
+
+---
+
+## 2.1 Launch Blocker: Contact Email & Placeholder Verification
+
+> [!CAUTION]
+> **PRE-LAUNCH REQUIREMENT:** `VITE_FEEDBACK_EMAIL` must be configured in Netlify to a real, monitored mailbox before public deployment. No `example.com` placeholder addresses may appear in production legal or disclosure documents.
+>
+> Run the following grep command prior to public launch to verify that all placeholders have been replaced:
+> ```bash
+> git grep -E "example\.com" src/routes/privacy.tsx src/routes/terms.tsx SECURITY.md public/.well-known/security.txt
+> ```
+> This command must return **zero matches** in production.
 
 ---
 
