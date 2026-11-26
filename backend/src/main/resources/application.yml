@@ -78,6 +78,9 @@ server:
     context-path: /
 
 velorix:
+  beta:
+    invite-only: ${BETA_INVITE_ONLY:false}
+    allowed-emails: ${BETA_ALLOWED_EMAILS:}
   mail:
     from: ${MAIL_FROM:noreply@velorix.com}
     from-name: ${MAIL_FROM_NAME:Velorix Sentinel}

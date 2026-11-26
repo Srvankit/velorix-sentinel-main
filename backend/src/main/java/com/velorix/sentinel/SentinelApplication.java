@@ -1,6 +1,7 @@
 package com.velorix.sentinel;
 
 import com.velorix.sentinel.config.properties.AppProperties;
+import com.velorix.sentinel.config.properties.BetaProperties;
 import com.velorix.sentinel.config.properties.CorsProperties;
 import com.velorix.sentinel.config.properties.DetectionProperties;
 import com.velorix.sentinel.config.properties.InspectionProperties;
@@ -26,7 +27,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         InspectionProperties.class,
         DetectionProperties.class,
         RetentionProperties.class,
-        RateLimitProperties.class})
+        RateLimitProperties.class,
+        BetaProperties.class})
 public class SentinelApplication {
 
     public static void main(String[] args) {

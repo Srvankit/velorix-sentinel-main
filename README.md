@@ -21,9 +21,19 @@ IOC extraction, risk scoring and remediation guidance.
 | Network Analytics Dashboard & Telemetry Visualizations | Done |
 | Production Hardening (CORS, Swagger Gating, Actuator Probes) | Done |
 | Production Profile Validation & Secret Guardrails | Done |
+| Closed Beta Gate & Telemetry Monitoring | Done |
 | AI Copilot | Preview / Experimental (Waitlist) |
 
 No fabricated metrics are rendered anywhere in the UI. Live data surfaces display real verdicts computed by the streaming packet inspection and detection engine. Unbuilt post-beta modules are gated behind explicit preview / waitlist status.
+
+## Closed Beta
+
+Velorix Sentinel is in private closed beta. Registration is gated by an invite allowlist (`BETA_INVITE_ONLY=true` and `BETA_ALLOWED_EMAILS`).
+
+- **Operational Telemetry & Metrics:** See [`docs/MONITORING.md`](docs/MONITORING.md) for Prometheus metric catalogs, health indicators, alert thresholds, and log search patterns.
+- **Beta Launch & 48-Hour Soak Checklist:** See [`docs/BETA_CHECKLIST.md`](docs/BETA_CHECKLIST.md) for pre-beta go/no-go checks, onboarding templates, and soak testing logs.
+- **Operational Database Queries:** See [`docs/BETA_OPS_QUERIES.sql`](docs/BETA_OPS_QUERIES.sql) for 10 read-only SQL queries to monitor stuck analyses, quotas, sign-ins, and threat patterns.
+- **Disaster Recovery & Restore Runbook:** See [`RUNBOOK_DISASTER_RECOVERY.md`](RUNBOOK_DISASTER_RECOVERY.md).
 
 ## Frontend stack
 

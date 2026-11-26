@@ -1,6 +1,7 @@
 package com.velorix.sentinel.service.impl;
 
 import com.velorix.sentinel.config.properties.AppProperties;
+import com.velorix.sentinel.config.properties.BetaProperties;
 import com.velorix.sentinel.dto.auth.AuthResponse;
 import com.velorix.sentinel.dto.auth.ChangePasswordRequest;
 import com.velorix.sentinel.dto.auth.DeleteAccountRequest;
@@ -52,6 +53,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -99,6 +101,7 @@ public class AuthServiceImpl implements AuthService {
     private final FileStorageService fileStorageService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final ActivityLogRepository activityLogRepository;
+    private final BetaProperties betaProperties;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -118,6 +121,47 @@ public class AuthServiceImpl implements AuthService {
             FileStorageService fileStorageService,
             RefreshTokenRepository refreshTokenRepository,
             ActivityLogRepository activityLogRepository) {
+        this(
+                userRepository,
+                userMapper,
+                passwordEncoder,
+                tokenProvider,
+                authenticationManager,
+                refreshTokenService,
+                verificationTokenService,
+                verificationTokenRepository,
+                oauthExchangeCodeRepository,
+                activityLogService,
+                emailService,
+                appProperties,
+                currentUserProvider,
+                uploadedFileRepository,
+                fileStorageService,
+                refreshTokenRepository,
+                activityLogRepository,
+                new BetaProperties(false, List.of()));
+    }
+
+    @Autowired
+    public AuthServiceImpl(
+            UserRepository userRepository,
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider tokenProvider,
+            AuthenticationManager authenticationManager,
+            RefreshTokenService refreshTokenService,
+            VerificationTokenService verificationTokenService,
+            VerificationTokenRepository verificationTokenRepository,
+            OAuthExchangeCodeRepository oauthExchangeCodeRepository,
+            ActivityLogService activityLogService,
+            EmailService emailService,
+            AppProperties appProperties,
+            CurrentUserProvider currentUserProvider,
+            UploadedFileRepository uploadedFileRepository,
+            FileStorageService fileStorageService,
+            RefreshTokenRepository refreshTokenRepository,
+            ActivityLogRepository activityLogRepository,
+            BetaProperties betaProperties) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
@@ -135,6 +179,7 @@ public class AuthServiceImpl implements AuthService {
         this.fileStorageService = fileStorageService;
         this.refreshTokenRepository = refreshTokenRepository;
         this.activityLogRepository = activityLogRepository;
+        this.betaProperties = betaProperties != null ? betaProperties : new BetaProperties(false, List.of());
     }
 
 
@@ -146,6 +191,11 @@ public class AuthServiceImpl implements AuthService {
         if (existingUser.isPresent()) {
             log.debug("Registration requested for existing email; suppressing enumeration");
             return;
+        }
+
+        if (!betaProperties.isAllowed(email)) {
+            log.warn("Invite-only registration rejected for recipient: {}", EmailLogSanitizer.maskEmail(email));
+            throw new ForbiddenException("Registration is currently invite-only.", "INVITE_ONLY");
         }
 
         User user = userRepository.save(User.builder()
@@ -268,6 +318,10 @@ public class AuthServiceImpl implements AuthService {
             }
 
             // Scenario 3A: Existing user is UNVERIFIED (Pre-account takeover defense)
+            if (!betaProperties.isAllowed(normalizedEmail)) {
+                log.warn("Invite-only OAuth registration rejected for recipient: {}", EmailLogSanitizer.maskEmail(normalizedEmail));
+                throw new ForbiddenException("Registration is currently invite-only.", "INVITE_ONLY");
+            }
             if (userRepository.existsByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId)) {
                 throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
             }
@@ -298,6 +352,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Scenario 2: Brand new account registering via OAuth
+        if (!betaProperties.isAllowed(normalizedEmail)) {
+            log.warn("Invite-only OAuth registration rejected for recipient: {}", EmailLogSanitizer.maskEmail(normalizedEmail));
+            throw new ForbiddenException("Registration is currently invite-only.", "INVITE_ONLY");
+        }
         if (userRepository.existsByOauthProviderAndOauthProviderId(cleanProvider, cleanProviderId)) {
             throw new ResourceConflictException("This " + cleanProvider + " account is already linked to another user.");
         }
