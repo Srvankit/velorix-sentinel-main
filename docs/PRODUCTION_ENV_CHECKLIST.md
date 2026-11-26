@@ -76,7 +76,7 @@ Generate a strong alphanumeric password of at least 32 characters:
 | 34 | `PORT` | Backend | Optional | No | Render Web Service | `10000` | Render default container port | [ ] | [ ] |
 | 35 | `SWAGGER_ENABLED` | Backend | Optional | No | Render Web Service | `false` | `ProductionProfileValidator.java:286-291` | [ ] | [ ] |
 | 36 | `LOG_LEVEL_APP` | Backend | Optional | No | Render Web Service | `INFO` | `application-prod.yml:48` | [ ] | [ ] |
-| 37 | `LOG_STRUCTURED_FORMAT` | Backend | Optional | No | Render Web Service | `json` | `application-prod.yml:45` | [ ] | [ ] |
+| 37 | `LOG_STRUCTURED_FORMAT` | Backend | Optional | No | Render Web Service | `ecs` (Elastic Common Schema) | `application-prod.yml:45` | [ ] | [ ] |
 | 38 | `VITE_API_BASE_URL` | Frontend | **Mandatory** | No | Netlify Site Settings | `https://<PROD_BACKEND_DOMAIN>/api` | Evaluated at Netlify **BUILD TIME** | [ ] | [ ] |
 | 39 | `VITE_FEEDBACK_EMAIL` | Frontend | **Launch Blocker** | No | Netlify Site Settings | Real monitored email (e.g. `support@yourdomain.com`) | Evaluated at Netlify **BUILD TIME** | [ ] | [ ] |
 
