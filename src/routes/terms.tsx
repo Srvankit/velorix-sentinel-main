@@ -4,6 +4,7 @@ import { ArrowLeft, FileCheck, Scale, ShieldAlert, Cpu, AlertCircle, Mail } from
 import { Footer, Navbar } from "@/components/landing";
 import { Button } from "@/components/ui/button";
 import { APP_NAME, COMPANY_NAME, ROUTES } from "@/utils/constants";
+import { getFeedbackEmail } from "@/utils/feedback";
 
 const TITLE = `Terms of Service · ${APP_NAME}`;
 const DESCRIPTION = `Terms of Service and conditions of use for ${APP_NAME} by ${COMPANY_NAME}.`;
@@ -198,7 +199,10 @@ function TermsPage() {
               </p>
               <div className="rounded-xl border border-border bg-card/60 p-4 font-mono text-xs text-foreground">
                 <p>Velorix Technologies — Legal Department</p>
-                <p className="mt-1">Email: legal@velorix.tech / support@velorix.tech</p>
+                <p className="mt-1">
+                  Email: {getFeedbackEmail() ?? "legal@example.com"}
+                  {!getFeedbackEmail() && " (placeholder — configure VITE_FEEDBACK_EMAIL)"}
+                </p>
               </div>
             </section>
           </article>

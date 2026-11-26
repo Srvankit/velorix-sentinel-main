@@ -17,7 +17,7 @@ IOC extraction, risk scoring and remediation guidance.
 | PCAP/PCAPNG Uploads & Magic-Byte Validation | Done |
 | Streaming Deep Packet Inspection & Pure-Java Decoders | Done |
 | Automated Rule-Based Threat Detection (13 Rules) | Done |
-| Real-time Threat Intelligence Feed & Risk Badging | Done |
+| Threat Intelligence Feed & Risk Badging | Done |
 | Network Analytics Dashboard & Telemetry Visualizations | Done |
 | Production Hardening (CORS, Swagger Gating, Actuator Probes) | Done |
 | Production Profile Validation & Secret Guardrails | Done |
@@ -26,14 +26,23 @@ IOC extraction, risk scoring and remediation guidance.
 
 No fabricated metrics are rendered anywhere in the UI. Live data surfaces display real verdicts computed by the streaming packet inspection and detection engine. Unbuilt post-beta modules are gated behind explicit preview / waitlist status.
 
+## Launch & Operations
+
+Velorix Sentinel is preparing for controlled public beta launch. Pre-launch documentation, operational runbooks, and readiness assessments are linked below:
+
+- **Launch Runbook & Timed Go-Live Procedure:** See [`docs/LAUNCH_RUNBOOK.md`](docs/LAUNCH_RUNBOOK.md).
+- **Production Environment Variables Checklist:** See [`docs/PRODUCTION_ENV_CHECKLIST.md`](docs/PRODUCTION_ENV_CHECKLIST.md).
+- **Final Launch Readiness Report & Unverified Register:** See [`LAUNCH_READINESS_FINAL.md`](LAUNCH_READINESS_FINAL.md).
+- **Security & Vulnerability Disclosure Policy:** See [`SECURITY.md`](SECURITY.md).
+- **Changelog & Release Notes:** See [`CHANGELOG.md`](CHANGELOG.md).
+- **Disaster Recovery & Restore Runbook:** See [`RUNBOOK_DISASTER_RECOVERY.md`](RUNBOOK_DISASTER_RECOVERY.md).
+- **Operational Telemetry & Metrics:** See [`docs/MONITORING.md`](docs/MONITORING.md).
+- **Beta Launch & 48-Hour Soak Checklist:** See [`docs/BETA_CHECKLIST.md`](docs/BETA_CHECKLIST.md).
+- **Operational Database Queries:** See [`docs/BETA_OPS_QUERIES.sql`](docs/BETA_OPS_QUERIES.sql).
+
 ## Closed Beta
 
-Velorix Sentinel is in private closed beta. Registration is gated by an invite allowlist (`BETA_INVITE_ONLY=true` and `BETA_ALLOWED_EMAILS`).
-
-- **Operational Telemetry & Metrics:** See [`docs/MONITORING.md`](docs/MONITORING.md) for Prometheus metric catalogs, health indicators, alert thresholds, and log search patterns.
-- **Beta Launch & 48-Hour Soak Checklist:** See [`docs/BETA_CHECKLIST.md`](docs/BETA_CHECKLIST.md) for pre-beta go/no-go checks, onboarding templates, and soak testing logs.
-- **Operational Database Queries:** See [`docs/BETA_OPS_QUERIES.sql`](docs/BETA_OPS_QUERIES.sql) for 10 read-only SQL queries to monitor stuck analyses, quotas, sign-ins, and threat patterns.
-- **Disaster Recovery & Restore Runbook:** See [`RUNBOOK_DISASTER_RECOVERY.md`](RUNBOOK_DISASTER_RECOVERY.md).
+Velorix Sentinel initial access is gated by an invite allowlist (`BETA_INVITE_ONLY=true` and `BETA_ALLOWED_EMAILS`). Full public self-service registration unlocks at public launch when `BETA_INVITE_ONLY=false`.
 
 ## Frontend stack
 
