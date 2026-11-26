@@ -39,9 +39,9 @@ Defined and registered in `com.velorix.sentinel.config.InspectionExecutorConfig`
 The following metrics are **not** currently emitted as custom Micrometer meters; operational monitoring relies on database queries or log patterns:
 
 - **`[GAP] inspection.duration`**: No custom Micrometer timer measures analysis execution time.
-  - *Mitigation:* Wall-clock duration is persisted per analysis in PostgreSQL (`analyses.duration_ms`). Query `docs/BETA_OPS_QUERIES.sql` (Query 3) for p50/p90/p99 latency percentiles.
+  - *Mitigation:* Wall-clock duration is persisted per analysis in PostgreSQL (`analyses.duration_ms`). Query [`BETA_OPS_QUERIES.sql`](BETA_OPS_QUERIES.sql) (Query 3) for p50/p90/p99 latency percentiles.
 - **`[GAP] auth.failures`**: No custom Micrometer counter tracks failed login attempts.
-  - *Mitigation:* Failed sign-in events are persisted to PostgreSQL (`activity_logs` where `activity_type = 'LOGIN_FAILURE'`). Query `docs/BETA_OPS_QUERIES.sql` (Query 5).
+  - *Mitigation:* Failed sign-in events are persisted to PostgreSQL (`activity_logs` where `activity_type = 'LOGIN_FAILURE'`). Query [`BETA_OPS_QUERIES.sql`](BETA_OPS_QUERIES.sql) (Query 5).
 - **`[GAP] rate_limit.rejected`**: No custom Micrometer counter counts Bucket4j rate-limit rejections.
   - *Mitigation:* Track HTTP 429 occurrences in `http.server.requests` where tag `status="429"`.
 - **`[GAP] storage.errors`**: No custom Micrometer counter counts S3/Supabase storage upload/read failures.
@@ -88,7 +88,7 @@ Configured for operation on free-tier infrastructure:
 | **HTTP 5xx Error Rate** | > 1% over 5m | > 5% over 5m | Unhandled backend exceptions. Check Render logs for stack traces. |
 | **HTTP 429 Rate Limit Hits** | > 10 / min | > 50 / min | Client retry storm or brute-force attempt. Investigate originating IP in `activity_logs`. |
 | **Readiness Probe** | DOWN > 1 min | DOWN > 3 min | Backend cannot connect to database or storage. Triage Supabase availability and Render networking. |
-| **Reaper Stuck Analyses** | > 0 for > 15m | > 2 for > 30m | Inspections not completing within `INSPECTION_MAX_DURATION` (15m). Run Reaper query in `docs/BETA_OPS_QUERIES.sql`. |
+| **Reaper Stuck Analyses** | > 0 for > 15m | > 2 for > 30m | Inspections not completing within `INSPECTION_MAX_DURATION` (15m). Run Reaper query in [`BETA_OPS_QUERIES.sql`](BETA_OPS_QUERIES.sql). |
 
 ---
 

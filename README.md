@@ -33,7 +33,7 @@ Velorix Sentinel is in private closed beta. Registration is gated by an invite a
 - **Operational Telemetry & Metrics:** See [`docs/MONITORING.md`](docs/MONITORING.md) for Prometheus metric catalogs, health indicators, alert thresholds, and log search patterns.
 - **Beta Launch & 48-Hour Soak Checklist:** See [`docs/BETA_CHECKLIST.md`](docs/BETA_CHECKLIST.md) for pre-beta go/no-go checks, onboarding templates, and soak testing logs.
 - **Operational Database Queries:** See [`docs/BETA_OPS_QUERIES.sql`](docs/BETA_OPS_QUERIES.sql) for 10 read-only SQL queries to monitor stuck analyses, quotas, sign-ins, and threat patterns.
-- **Disaster Recovery & Restore Runbook:** See [`docs/RUNBOOK_DISASTER_RECOVERY.md`](docs/RUNBOOK_DISASTER_RECOVERY.md).
+- **Disaster Recovery & Restore Runbook:** See [`RUNBOOK_DISASTER_RECOVERY.md`](RUNBOOK_DISASTER_RECOVERY.md).
 
 ## Frontend stack
 

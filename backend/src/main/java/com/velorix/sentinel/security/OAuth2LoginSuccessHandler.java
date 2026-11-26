@@ -2,6 +2,7 @@ package com.velorix.sentinel.security;
 
 import com.velorix.sentinel.config.properties.AppProperties;
 import com.velorix.sentinel.entity.User;
+import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.service.AuthService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -83,6 +84,14 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
             String code = authService.getObject().createOAuthExchangeCode(user);
             String target = appProperties.frontendBaseUrl() + "/oauth/callback?code=" + encode(code);
             clearAuthenticationAttributes(request);
+            getRedirectStrategy().sendRedirect(request, response, target);
+        } catch (ForbiddenException ex) {
+            log.warn("OAuth authentication rejected by beta gate for provider {}: {}", provider, ex.getMessage());
+            clearAuthenticationAttributes(request);
+            String errorCode = ex.getCode() != null ? ex.getCode() : "INVITE_ONLY";
+            String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Registration is currently invite-only.";
+            String target = appProperties.frontendBaseUrl() + "/oauth/callback?error="
+                    + encode(errorCode) + "&error_description=" + encode(errorMsg);
             getRedirectStrategy().sendRedirect(request, response, target);
         } catch (Exception ex) {
             log.warn("OAuth authentication failed for provider {}: {}", provider, ex.getMessage());

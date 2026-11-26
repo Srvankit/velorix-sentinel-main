@@ -120,7 +120,7 @@ SELECT
     u.created_at,
     NOW() - u.created_at AS pending_age
 FROM users u
-WHERE u.email_verified = FALSE
+WHERE u.is_verified = FALSE
   AND u.created_at < NOW() - INTERVAL '48 hours'
 ORDER BY u.created_at ASC;
 
@@ -132,7 +132,7 @@ ORDER BY u.created_at ASC;
 SELECT
     DATE_TRUNC('day', created_at) AS signup_date,
     COUNT(*) AS new_user_count,
-    COUNT(*) FILTER (WHERE email_verified = TRUE) AS verified_user_count
+    COUNT(*) FILTER (WHERE is_verified = TRUE) AS verified_user_count
 FROM users
 WHERE created_at >= NOW() - INTERVAL '30 days'
 GROUP BY DATE_TRUNC('day', created_at)

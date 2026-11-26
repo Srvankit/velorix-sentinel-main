@@ -11,11 +11,11 @@ All items must be verified and signed off before admitting external testers to t
 | Check Item | Requirement | Verification Method | Status |
 | :--- | :--- | :--- | :--- |
 | **1. Staging Verification** | Golden PCAP verification suite passes with 0 unexpected failures. | Run `npm run verify:staging` or Task 8.2 harness against staging. | [ ] |
-| **2. Disaster Recovery Readiness** | Restore runbook and scripts verified and ready. | Review `docs/RUNBOOK_DISASTER_RECOVERY.md`; test `restore-db` on local container. | [ ] |
+| **2. Disaster Recovery Readiness** | Restore runbook and scripts verified and ready. | Review `../RUNBOOK_DISASTER_RECOVERY.md`; test `restore-db` on local container. | [ ] |
 | **3. Object Storage Configured** | S3 / Supabase Storage bucket accessible and writable. | Verify `/actuator/health/readiness` reports `storage: UP`. | [ ] |
 | **4. Transactional Email** | SMTP credentials configured and delivering emails. | Register test user and verify activation link delivery. | [ ] |
 | **5. Beta Gate Active** | `BETA_INVITE_ONLY=true` active in Render staging environment. | Verify startup log: `Closed beta invite-only gate: ON`. | [ ] |
-| **6. Allowlist Populated** | Initial tester emails added to `BETA_ALLOWED_EMAILS`. | Confirm tester emails in env variable; verify unlisted emails receive 403. | [ ] |
+| **6. Allowlist Populated** | Initial tester emails added to `BETA_ALLOWED_EMAILS`. **CRITICAL:** Staging verification harness accounts (`staging.primary@velorix.net`, `staging.secondary@velorix.net`) must be included in `BETA_ALLOWED_EMAILS` or pre-flight runs will fail with 403 `INVITE_ONLY`. | Confirm tester and test-harness emails in env variable; verify unlisted emails receive 403. | [ ] |
 | **7. Production Guardrails** | `SPRING_PROFILES_ACTIVE=prod` with no unapproved overrides. | Review startup logs; zero `ProductionConfigurationException` errors. | [ ] |
 | **8. Rate Limiting Active** | Bucket4j in-memory token buckets enabled for auth & uploads. | Verify `RATE_LIMIT_ENABLED=true` in environment. | [ ] |
 | **9. Uptime Monitoring Active** | External probe pinging `/actuator/health/readiness` every 5m. | Verify UptimeRobot / BetterStack dashboard reports green. | [ ] |
@@ -39,7 +39,26 @@ During the closed beta, registration is restricted by email allowlist:
      INFO  c.v.s.c.ProductionProfileValidator : Closed beta invite-only gate: ON (N allowed entries configured)
      ```
 
-### 2.2 Welcome Message Template for Testers
+### 2.2 Operational Constraints & Governance Policies
+
+1. **Resend Sandbox Delivery Constraint:**
+   - If using Resend in sandbox mode (prior to custom domain verification), emails can **only be delivered to the account owner's registration email address**.
+   - Inviting external testers requires a verified custom sending domain in Resend. Attempting to deliver verification tokens to unverified domains in sandbox mode will result in delivery failure.
+
+2. **Creating an Administrator Account for Prometheus Scraping:**
+   - The Prometheus scraping endpoint `/actuator/prometheus` strictly requires `ROLE_ADMIN` (`SecurityConfig.java:101`).
+   - All users registered via password or OAuth default strictly to `ROLE_USER` (`AuthServiceImpl.java:204` / `V1__baseline_schema.sql:13`). There is no public endpoint to elevate privileges.
+   - To promote an account to `ROLE_ADMIN`, register the user normally (ensuring the email is in `BETA_ALLOWED_EMAILS`), and execute in Supabase SQL editor or `psql`:
+     ```sql
+     -- Promote invited operator to platform administrator
+     UPDATE users SET role = 'ADMIN', is_verified = TRUE WHERE email = 'admin@example.com';
+     ```
+
+3. **Policy on Existing Unverified Accounts (Scenario 3A):**
+   - In `AuthServiceImpl.java` (Scenario 3A), existing unverified accounts attempting OAuth linking are explicitly gated by `betaProperties.isAllowed(email)`.
+   - *Rationale:* Unverified accounts do not represent confirmed beta participants. Gating Scenario 3A prevents malicious actors from bypassing the closed beta gate using unverified pre-beta accounts. Such accounts must be listed in `BETA_ALLOWED_EMAILS` to complete OAuth onboarding.
+
+### 2.3 Welcome Message Template for Testers
 
 Send the following email or Slack invite to accepted beta participants:
 
@@ -71,6 +90,12 @@ Send the following email or Slack invite to accepted beta participants:
 ## 3. 48-Hour Soak Testing Routine
 
 The 48-hour soak test verifies system stability, memory retention, connection pool hygiene, and reaper task execution over an extended duration on live staging infrastructure.
+
+> **INFRASTRUCTURE & RESOURCE NOTE (512 MB Instance):**  
+> All telemetry thresholds, memory limits, and alert triggers strictly assume a **Render Free Tier container (512 MB RAM, shared CPU)** and a **Supabase Free Tier database (500 MB storage, 10 pooler connections)**.
+> - **Heap Warning Threshold:** > 75% (~384 MB).  
+> - **Heap Critical Threshold:** > 85% (~435 MB).  
+> Exceeding 512 MB total process memory will trigger an immediate hard OOM termination by Render's container runtime. Keep capture uploads bounded to the 100 MB single-file and 500 MB user quota limits.
 
 ### 3.1 Observation Schedule & Metrics Table
 
@@ -118,11 +143,11 @@ To graduate from the closed beta phase to general availability (GA) readiness, a
 
 ## 5. Incident Quick-Reference
 
-If an incident occurs during the closed beta, immediately refer to `docs/RUNBOOK_DISASTER_RECOVERY.md`:
+If an incident occurs during the closed beta, immediately refer to [`../RUNBOOK_DISASTER_RECOVERY.md`](../RUNBOOK_DISASTER_RECOVERY.md):
 
 | Incident Type | Emergency Action | Runbook Section |
 | :--- | :--- | :--- |
-| **Database Corruption or Accidental Drop** | Restore staging database from Supabase automated snapshot. | `docs/RUNBOOK_DISASTER_RECOVERY.md#database-recovery` |
-| **Storage Desynchronization** | Run storage reconciliation script to detect orphan/missing S3 captures. | `docs/RUNBOOK_DISASTER_RECOVERY.md#storage-reconciliation` |
-| **Worker Queue Lockup** | Inspect stuck threads; restart Render web service via dashboard. | `docs/RUNBOOK_DISASTER_RECOVERY.md#restart-service` |
-| **Account Compromise / Token Revocation** | Revoke refresh token families for affected user account. | `docs/RUNBOOK_DISASTER_RECOVERY.md#token-revocation` |
+| **Database Corruption or Accidental Drop** | Restore staging database from Supabase automated snapshot. | [`../RUNBOOK_DISASTER_RECOVERY.md#database-recovery`](../RUNBOOK_DISASTER_RECOVERY.md#database-recovery) |
+| **Storage Desynchronization** | Run storage reconciliation script to detect orphan/missing S3 captures. | [`../RUNBOOK_DISASTER_RECOVERY.md#storage-reconciliation`](../RUNBOOK_DISASTER_RECOVERY.md#storage-reconciliation) |
+| **Worker Queue Lockup** | Inspect stuck threads; restart Render web service via dashboard. | [`../RUNBOOK_DISASTER_RECOVERY.md#restart-service`](../RUNBOOK_DISASTER_RECOVERY.md#restart-service) |
+| **Account Compromise / Token Revocation** | Revoke refresh token families for affected user account. | [`../RUNBOOK_DISASTER_RECOVERY.md#token-revocation`](../RUNBOOK_DISASTER_RECOVERY.md#token-revocation) |

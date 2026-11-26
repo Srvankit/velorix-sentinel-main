@@ -16,6 +16,24 @@ interface State {
 }
 
 /**
+ * Builds a sanitized mailto link for crash reports.
+ * Strictly includes only origin and pathname (never query search or hash fragments)
+ * to ensure sensitive tokens (e.g., verification or password reset tokens) are never leaked.
+ * The error message is truncated to at most 300 characters and contains no stack trace.
+ */
+export function buildCrashReportMailto(feedbackEmail: string, errorMessage: string): string {
+  const safeMessage = (errorMessage || "Unknown error").slice(0, 300);
+  const safeLocation =
+    typeof window !== "undefined" && window.location
+      ? `${window.location.origin}${window.location.pathname}`
+      : "unknown";
+
+  const subject = "Velorix Sentinel Crash Report";
+  const body = `Error: ${safeMessage}\nLocation: ${safeLocation}`;
+  return `mailto:${feedbackEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/**
  * Widget-level error boundary. Keeps one failing panel from taking down the
  * whole dashboard.
  */
@@ -36,6 +54,8 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
     if (this.props.fallback) return this.props.fallback;
 
+    const feedbackEmail = getFeedbackEmail();
+
     return (
       <div
         role="alert"
@@ -53,13 +73,9 @@ export class ErrorBoundary extends Component<Props, State> {
             <RotateCw className="size-4" aria-hidden="true" />
             Retry
           </Button>
-          {getFeedbackEmail() && (
+          {feedbackEmail && (
             <Button variant="ghost" size="sm" asChild>
-              <a
-                href={`mailto:${getFeedbackEmail()}?subject=${encodeURIComponent("Velorix Sentinel Crash Report")}&body=${encodeURIComponent(
-                  `Error: ${this.state.error.message}\nLocation: ${typeof window !== "undefined" ? window.location.href : "unknown"}`,
-                )}`}
-              >
+              <a href={buildCrashReportMailto(feedbackEmail, this.state.error.message)}>
                 <Mail className="size-4" aria-hidden="true" />
                 Report issue
               </a>

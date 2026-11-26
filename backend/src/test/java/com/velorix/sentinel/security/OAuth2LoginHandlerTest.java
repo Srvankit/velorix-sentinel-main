@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.velorix.sentinel.config.properties.AppProperties;
 import com.velorix.sentinel.entity.User;
 import com.velorix.sentinel.entity.enums.Role;
+import com.velorix.sentinel.exception.ForbiddenException;
 import com.velorix.sentinel.exception.ResourceConflictException;
 import com.velorix.sentinel.service.AuthService;
 import java.time.Duration;
@@ -170,5 +171,35 @@ class OAuth2LoginHandlerTest {
         assertThat(redirectUrl).isNotNull();
         assertThat(redirectUrl).startsWith("https://sentinel.velorix.io/login?error=");
         assertThat(redirectUrl).contains("Bad+credentials+or+state+mismatch");
+    }
+
+    @Test
+    @DisplayName("Success handler redirects to /oauth/callback?error=INVITE_ONLY when beta gate rejects new OAuth user")
+    void successHandlerRedirectsToFrontendCallbackWhenInviteOnlyRejected() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        DefaultOAuth2User principal = new DefaultOAuth2User(
+                List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                Map.of(
+                        "sub", "google-sub-uninvited",
+                        "email", "uninvited@external.com",
+                        "email_verified", true),
+                "sub");
+
+        OAuth2AuthenticationToken auth = new OAuth2AuthenticationToken(
+                principal,
+                principal.getAuthorities(),
+                "google");
+
+        when(authService.authenticateOAuthUser(any(), any(), any(), any(), any(), anyBoolean()))
+                .thenThrow(new ForbiddenException("Registration is currently invite-only.", "INVITE_ONLY"));
+
+        successHandler.onAuthenticationSuccess(request, response, auth);
+
+        String redirectUrl = response.getRedirectedUrl();
+        assertThat(redirectUrl).isNotNull();
+        assertThat(redirectUrl).startsWith("https://sentinel.velorix.io/oauth/callback?error=INVITE_ONLY");
+        assertThat(redirectUrl).contains("error_description=Registration+is+currently+invite-only.");
     }
 }

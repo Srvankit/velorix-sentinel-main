@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -61,6 +62,7 @@ public class ProductionProfileValidator implements SmartInitializingSingleton {
         this(environment, jwtProperties, corsProperties, storageProperties, appProperties, dataSourcePropertiesProvider, null);
     }
 
+    @Autowired
     public ProductionProfileValidator(
             Environment environment,
             JwtProperties jwtProperties,
