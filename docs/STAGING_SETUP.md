@@ -234,7 +234,7 @@ In the Render Web Service settings, navigate to **Environment** and add the foll
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID` | Primary | `<GITHUB_CLIENT_ID>` | No | Staging GitHub OAuth Client ID |
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET` | Primary | `<GITHUB_CLIENT_SECRET>` | **YES** | Staging GitHub OAuth Secret |
 | `LOG_LEVEL_APP` | Primary | `INFO` | No | Application logging level |
-| `LOG_STRUCTURED_FORMAT` | Primary | `json` | No | Render structured log format |
+| `LOG_STRUCTURED_FORMAT` | Primary | `ecs` | No | Render structured log format (Elastic Common Schema) |
 
 ---
 

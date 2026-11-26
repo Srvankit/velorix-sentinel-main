@@ -113,6 +113,11 @@ describe("Truthful Marketing Claims & Legal Links (Task 5.1)", () => {
       expect(fs.existsSync(privacyPath)).toBe(true);
       const content = fs.readFileSync(privacyPath, "utf-8");
       expect(content).toContain('createFileRoute("/privacy")');
+      expect(content.includes("@velorix.tech")).toBe(false);
+      expect(content).toContain("owner-scoped queries");
+      expect(content).toContain("backend service layer");
+      expect(content).toContain("Row Level Security (RLS)");
+      expect(content).toContain("We do not use per-tenant customer-managed encryption keys");
     });
 
     test("Terms route file exists and defines proper Route component", () => {
@@ -120,6 +125,8 @@ describe("Truthful Marketing Claims & Legal Links (Task 5.1)", () => {
       expect(fs.existsSync(termsPath)).toBe(true);
       const content = fs.readFileSync(termsPath, "utf-8");
       expect(content).toContain('createFileRoute("/terms")');
+      expect(content.includes("@velorix.tech")).toBe(false);
+      expect(content).toContain("legal@example.com");
     });
   });
 });

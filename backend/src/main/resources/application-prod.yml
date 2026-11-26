@@ -42,7 +42,7 @@ management:
 logging:
   structured:
     format:
-      console: ${LOG_STRUCTURED_FORMAT:json}
+      console: ${LOG_STRUCTURED_FORMAT:ecs}
   level:
     root: INFO
     com.velorix.sentinel: ${LOG_LEVEL_APP:INFO}

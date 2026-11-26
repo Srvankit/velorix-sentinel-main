@@ -1,0 +1,6 @@
+# RFC 9116 security.txt for Velorix Sentinel
+# TODO (OWNER): Replace security@example.com with your verified security inbox before public launch
+Contact: mailto:security@example.com
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en
+Policy: https://github.com/Srvankit/velorix-sentinel-main/blob/main/SECURITY.md

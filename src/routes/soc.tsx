@@ -62,10 +62,10 @@ function SocWorkspacePage() {
     return (
       <ModulePlaceholder
         title="SOC Analyst Workspace"
-        description="Unified security operations console for live alert triage, investigation panels, and team productivity."
+        description="Unified security operations console for streamlined alert triage, investigation panels, and team productivity."
         icon={TerminalSquare}
         plannedFeatures={[
-          "Real-time alert triage queue & analyst productivity scoring",
+          "Automated alert triage queue & analyst productivity scoring",
           "Multi-panel workspace layouts & analyst keyboard shortcuts",
           "Integrated investigation scratchpads & query consoles",
           "Cross-analyst collaborative dispatch",

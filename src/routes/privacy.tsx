@@ -4,6 +4,7 @@ import { ArrowLeft, Shield, Lock, FileText, Database, Trash2, Mail } from "lucid
 import { Footer, Navbar } from "@/components/landing";
 import { Button } from "@/components/ui/button";
 import { APP_NAME, COMPANY_NAME, ROUTES } from "@/utils/constants";
+import { getFeedbackEmail } from "@/utils/feedback";
 
 const TITLE = `Privacy Policy · ${APP_NAME}`;
 const DESCRIPTION = `Privacy Policy and data governance practices for ${APP_NAME} by ${COMPANY_NAME}.`;
@@ -148,14 +149,21 @@ function PrivacyPage() {
               </p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>
-                  <strong className="text-foreground">Tenant Isolation:</strong> Every upload is
-                  tagged with the authenticated user&apos;s unique identifier. Access control checks
-                  enforce ownership on every read, download, analysis, or deletion request.
+                  <strong className="text-foreground">Tenant Isolation:</strong> Data isolation is
+                  enforced primarily at the application layer through owner-scoped queries in the
+                  backend service layer, where every database query binds to the authenticated
+                  user&apos;s unique identifier. Supabase Row Level Security (RLS) policies provide
+                  defense-in-depth by blocking direct database API access. In cloud object storage,
+                  captures are segregated using user-scoped storage key prefixes (e.g.,
+                  &quot;captures/&#123;userId&#125;/&#123;fileId&#125;.pcap&quot;).
                 </li>
                 <li>
                   <strong className="text-foreground">Encryption:</strong> All data in transit is
-                  protected using modern TLS 1.3 encryption. Authentication tokens use signed JWTs
-                  and cryptographically secure random session tokens.
+                  protected using modern TLS 1.3 encryption. Data at rest in cloud object storage
+                  and the managed database is protected using provider server-side encryption
+                  (AES-256). We do not use per-tenant customer-managed encryption keys.
+                  Authentication tokens use signed JWTs and cryptographically secure random session
+                  tokens.
                 </li>
                 <li>
                   <strong className="text-foreground">Integrity Verification:</strong> Capture files
@@ -214,7 +222,10 @@ function PrivacyPage() {
               </p>
               <div className="rounded-xl border border-border bg-card/60 p-4 font-mono text-xs text-foreground">
                 <p>Velorix Technologies — Privacy & Security Office</p>
-                <p className="mt-1">Email: privacy@velorix.tech / support@velorix.tech</p>
+                <p className="mt-1">
+                  Email: {getFeedbackEmail() ?? "privacy@example.com"}
+                  {!getFeedbackEmail() && " (placeholder — configure VITE_FEEDBACK_EMAIL)"}
+                </p>
               </div>
             </section>
           </article>
